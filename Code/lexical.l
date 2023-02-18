@@ -29,13 +29,24 @@ RETURN      return
 IF          if
 ELSE        else
 WHILE       while
-INT         0|[1-9][0-9]*
+INT_10      0|[1-9][0-9]*
+INT_8       0[1-7][0-7]*
+INT_16      0[xX][0-9a-fA-F]+
+INT         {INT_8}|{INT_10}|{INT_16}
 FLOAT       {digit}+"."{digit}+
 ID          {letter}({digit}|{letter})*
 %%
 {space}     {/*Do nothing*/;}
 \r|\n       {yycolumn=1;printf("\n");}
-"//"        {char c=input();while(c!='\n')c=input();}
+"//"        {char c=input();
+             while(c&&(c!='\n'))c=input();
+            }
+"/*"        {char c1=input(),c2=input();
+             while(c2&&!(c1=='*'&&c2=='/')){
+                c1=c2;c2=input();
+             }
+             //TODO:未匹配到 "*/"
+            }
 {SEMI}      {printf(";");}
 {COMMA}     {printf(",");}
 {ASSIGNOP}  {printf("=");}
