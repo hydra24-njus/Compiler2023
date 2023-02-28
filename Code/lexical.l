@@ -1,5 +1,7 @@
+%option yylineno
 %{
 /*定义第三部分需要用到的变量*/
+#include "syntax.tab.h"
 int yycolumn=1;
 %}
 space       [ \t]
@@ -40,39 +42,44 @@ ID          {letter}({digit}|{letter})*
 \r|\n       {yycolumn=1;printf("\n");}
 "//"        {char c=input();
              while(c&&(c!='\n'))c=input();
+             //TODO:yycolumn;
             }
 "/*"        {char c1=input(),c2=input();
              while(c2&&!(c1=='*'&&c2=='/')){
                 c1=c2;c2=input();
              }
-             //TODO:未匹配到 "*/"
+             if(!c2){
+               //TODO:未匹配到 "*/"
+               //printf("");
+             }
+             //TODO:yycolumn;
             }
-{SEMI}      {printf(";");}
-{COMMA}     {printf(",");}
-{ASSIGNOP}  {printf("=");}
-{RELOP}     {printf("RELOP");}
-{PLUS}      {printf("+");}
-{MINUS}     {printf("-");}
-{STAR}      {printf("*");}
-{DIV}       {printf("/");}
-{AND}       {printf("&&");}
-{OR}        {printf("||");}
-{DOT}       {printf(".");}
-{NOT}       {printf("!");}
-{TYPE}      {printf(" TYPE ");}
-{LP}        {printf("(");}
-{RP}        {printf(")");}
-{LB}        {printf("[");}
-{RB}        {printf("]");}
-{LC}        {printf("{");}
-{RC}        {printf("}");}
-{STRUCT}    {printf(" STRUCT ");}
-{RETURN}    {printf(" RETURN ");}
-{IF}        {printf(" IF ");}
-{ELSE}      {printf(" ELSE ");}
-{WHILE}     {printf(" WHILE ");}
-{INT}       {printf(" (INT,%s) ",yytext);}
-{FLOAT}     {printf(" (FLOAT,%s) ",yytext);}
-{ID}        {printf(" (ID,%s) ",yytext);}
+{SEMI}      {return SEMI;}
+{COMMA}     {return SEMI;}
+{ASSIGNOP}  {return SEMI;}
+{RELOP}     {return SEMI;}
+{PLUS}      {return SEMI;}
+{MINUS}     {return SEMI;}
+{STAR}      {return SEMI;}
+{DIV}       {return SEMI;}
+{AND}       {return SEMI;}
+{OR}        {return SEMI;}
+{DOT}       {return SEMI;}
+{NOT}       {return SEMI;}
+{TYPE}      {return SEMI;}
+{LP}        {return SEMI;}
+{RP}        {return SEMI;}
+{LB}        {return SEMI;}
+{RB}        {return SEMI;}
+{LC}        {return SEMI;}
+{RC}        {return SEMI;}
+{STRUCT}    {return SEMI;}
+{RETURN}    {return SEMI;}
+{IF}        {return SEMI;}
+{ELSE}      {return SEMI;}
+{WHILE}     {return SEMI;}
+{INT}       {return SEMI;}
+{FLOAT}     {return SEMI;}
+{ID}        {return ID;}
 .           {printf("error!Non-matched patten.%s\n",yytext);}
 %%
