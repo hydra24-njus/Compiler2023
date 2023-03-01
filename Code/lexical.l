@@ -89,7 +89,7 @@ ID          {letter}({digit}|{letter})*
 {IF}        {return SEMI;}
 {ELSE}      {return SEMI;}
 {WHILE}     {return SEMI;}
-{INT}       {printf("line:%d\tcolumn:%d\n",yylloc.first_line,yylloc.first_column);yylval.type_int=strtol(yytext,NULL,0);return INT;}//a good function strtol(const char* nptr,char** endptr,int base);endptr为NULL则转换完整字符串、base为0则根据形式决定进制
+{INT}       {yylval.type_int=strtol(yytext,NULL,0);return INT;}//a good function strtol(const char* nptr,char** endptr,int base);endptr为NULL则转换完整字符串、base为0则根据形式决定进制
 {FLOAT}     {yylval.type_float=atof(yytext);return FLOAT;}
 {ID}        {return ID;}
 .           {printf("Error type A at Line %d: Mysterious characters \'%s\'\n",yylineno, yytext);}

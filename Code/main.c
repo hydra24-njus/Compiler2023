@@ -1,5 +1,4 @@
 #include<stdio.h>
-//#include<stdlib.h>
 
 extern int yylineno;
 extern int yyparse();

@@ -39,7 +39,7 @@ Calc : /* empty */
 
 %%
 
-yyerror(char* msg){
+int yyerror(char* msg){
     fprintf(stderr, "Error type B at line %d: %s\n",yylineno,msg);
     return 0;
 }
