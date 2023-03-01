@@ -1,9 +1,11 @@
-%option yylineno
 %{
 /*定义第三部分需要用到的变量*/
 #include "syntax.tab.h"
+#include <stdlib.h>
+#include <stdio.h>
 int yycolumn=1;
 %}
+%option yylineno
 space       [ \t]
 digit       [0-9]
 letter      [_a-zA-Z]
@@ -58,10 +60,10 @@ ID          {letter}({digit}|{letter})*
 {COMMA}     {return SEMI;}
 {ASSIGNOP}  {return SEMI;}
 {RELOP}     {return SEMI;}
-{PLUS}      {return SEMI;}
-{MINUS}     {return SEMI;}
-{STAR}      {return SEMI;}
-{DIV}       {return SEMI;}
+{PLUS}      {return PLUS;}
+{MINUS}     {return MINUS;}
+{STAR}      {return STAR;}
+{DIV}       {return DIV;}
 {AND}       {return SEMI;}
 {OR}        {return SEMI;}
 {DOT}       {return SEMI;}
@@ -78,8 +80,9 @@ ID          {letter}({digit}|{letter})*
 {IF}        {return SEMI;}
 {ELSE}      {return SEMI;}
 {WHILE}     {return SEMI;}
-{INT}       {return SEMI;}
-{FLOAT}     {return SEMI;}
+{INT}       {yylval.type_int=strtol(yytext,NULL,0);return INT;}//a good function strtol(const char* nptr,char** endptr,int base);endptr为NULL则转换完整字符串、base为0则根据形式决定进制
+{FLOAT}     {yylval.type_float=atof(yytext);return FLOAT;}
 {ID}        {return ID;}
-.           {printf("error!Non-matched patten.%s\n",yytext);}
+.           {printf("Error type A at Line %d: Mysterious characters \'%s\'\n",yylineno, yytext);}
+
 %%

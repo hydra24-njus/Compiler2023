@@ -1,5 +1,5 @@
 #include<stdio.h>
-#include<stdlib.h>
+//#include<stdlib.h>
 
 extern int yylineno;
 extern int yyparse();
@@ -12,7 +12,7 @@ int main(int argc,char** argv){
         perror(argv[1]);
         return 1;
     }
-    yyrestart(f);
-    yyparse();
+    yyrestart(f);//将flex输入文件的指针设为f，并指向文件开头。
+    yyparse();//对输入文件进行分析
     return 0;
 }
