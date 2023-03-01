@@ -1,3 +1,4 @@
+%locations
 %{
 #include <stdio.h>
 #include "lex.yy.c"
@@ -39,6 +40,6 @@ Calc : /* empty */
 %%
 
 yyerror(char* msg){
-    fprintf(stderr, "Error type B at line %d: %s\n", yylineno,msg);
+    fprintf(stderr, "Error type B at line %d: %s\n",yylineno,msg);
     return 0;
 }
