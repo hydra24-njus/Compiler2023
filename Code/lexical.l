@@ -41,7 +41,7 @@ FLOAT       {digit}+"."{digit}+
 ID          {letter}({digit}|{letter})*
 %%
 {space}     {/*Do nothing*/;}
-\r|\n       {yycolumn=1;printf("\n");}
+\r|\n       {yycolumn=1;}
 "//"        {char c=input();
              while(c&&(c!='\n'))c=input();
              //TODO:yycolumn;
