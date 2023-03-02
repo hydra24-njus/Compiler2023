@@ -33,7 +33,7 @@ syntax-c: $(YFILE)
 
 # 定义的一些伪目标
 .PHONY: clean test commit
-test:
+test:parser
 	bash ./test.sh
 commit:
 	git add .

@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 int yycolumn=1;
+extern int Lexerror;
 #define YY_USER_ACTION \
   yylloc.first_line = yylloc.last_line = yylineno; \
   yylloc.first_column = yycolumn; \
@@ -41,12 +42,16 @@ ELSE        else
 WHILE       while
 INT_10      0|[1-9][0-9]*
 INT_8       0[1-7][0-7]*
+INT_8E      (0[1-7][0-7]*[8-9][0-9]*)|(0[8-9][0-9]*)
 INT_16      0[xX][0-9a-fA-F]+
+INT_16E     (0[xX][0-9a-fA-F][g-zG-Z][0-9a-zA-Z]*)|(0[xX][g-zG-Z][0-9a-zA-Z]*)
 INT         {INT_8}|{INT_10}|{INT_16}
+INT_E       {INT_8E}|{INT_16E}
 FLOAT       {digit}+"."{digit}+
+FLOAT_E     ("."{digit}+)|({digit}+".")
 ID          {letter}({digit}|{letter})*
 %%
-{space}     {/*Do nothing*/;}
+{space}     {}
 \r|\n       {yycolumn=1;}
 "//"        {char c=input();
              while(c&&(c!='\n'))c=input();
@@ -60,38 +65,41 @@ ID          {letter}({digit}|{letter})*
              }
              if(!c2){
                //TODO:未匹配到 "*/"
+               Lexerror=1;
                printf("Error type A at line %d: unterminated comment\n", lineno_now);
              }
              else yycolumn++;
              //貌似没有必要维护 yycolumn
             }
 {SEMI}      {return SEMI;}
-{COMMA}     {return SEMI;}
-{ASSIGNOP}  {return SEMI;}
-{RELOP}     {return SEMI;}
+{COMMA}     {return COMMA;}
+{ASSIGNOP}  {return ASSIGNOP;}
+{RELOP}     {return RELOP;}
 {PLUS}      {return PLUS;}
 {MINUS}     {return MINUS;}
 {STAR}      {return STAR;}
 {DIV}       {return DIV;}
-{AND}       {return SEMI;}
-{OR}        {return SEMI;}
-{DOT}       {return SEMI;}
-{NOT}       {return SEMI;}
-{TYPE}      {return SEMI;}
-{LP}        {return SEMI;}
-{RP}        {return SEMI;}
-{LB}        {return SEMI;}
-{RB}        {return SEMI;}
-{LC}        {return SEMI;}
-{RC}        {return SEMI;}
-{STRUCT}    {return SEMI;}
-{RETURN}    {return SEMI;}
-{IF}        {return SEMI;}
-{ELSE}      {return SEMI;}
-{WHILE}     {return SEMI;}
+{AND}       {return AND;}
+{OR}        {return OR;}
+{DOT}       {return DOT;}
+{NOT}       {return NOT;}
+{TYPE}      {return TYPE;}
+{LP}        {return LP;}
+{RP}        {return RP;}
+{LB}        {return LB;}
+{RB}        {return RB;}
+{LC}        {return LC;}
+{RC}        {return RC;}
+{STRUCT}    {return STRUCT;}
+{RETURN}    {return RETURN;}
+{IF}        {return IF;}
+{ELSE}      {return ELSE;}
+{WHILE}     {return WHILE;}
 {INT}       {yylval.type_int=strtol(yytext,NULL,0);return INT;}//a good function strtol(const char* nptr,char** endptr,int base);endptr为NULL则转换完整字符串、base为0则根据形式决定进制
+{INT_E}     {yylval.type_int=0;Lexerror=1;printf("Error type A at Line %d: Illegal INT: \'%s\'\n",yylineno, yytext);return INT;}
 {FLOAT}     {yylval.type_float=atof(yytext);return FLOAT;}
-{ID}        {return ID;}
-.           {printf("Error type A at Line %d: Mysterious characters \'%s\'\n",yylineno, yytext);}
+{FLOAT_E}   {yylval.type_float=0;Lexerror=1;printf("Error type A at Line %d: Illegal FLOAT: \'%s\'\n",yylineno, yytext);return FLOAT;}
+{ID}        {yylval.type_char=yytext;return ID;}
+.           {Lexerror=1;printf("Error type A at Line %d: Mysterious characters \'%s\'\n",yylineno, yytext);}
 
 %%
