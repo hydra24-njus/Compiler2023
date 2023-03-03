@@ -72,7 +72,7 @@ ID          {letter}({digit}|{letter})*
              if(!c2){
                //TODO:未匹配到 "*/"
                Lexerror=1;
-               fprintf(stderr,"Error type A at line %d: unterminated comment\n", lineno_now);
+               fprintf(stdout,"Error type A at line %d: unterminated comment\n", lineno_now);
              }
              else yycolumn++;
              //貌似没有必要维护 yycolumn
@@ -102,10 +102,10 @@ ID          {letter}({digit}|{letter})*
 {ELSE}      {return ELSE;}
 {WHILE}     {return WHILE;}
 {INT}       {yylval.type_int=strtol(yytext,NULL,0);return INT;}//a good function strtol(const char* nptr,char** endptr,int base);endptr为NULL则转换完整字符串、base为0则根据形式决定进制
-{INT_E}     {yylval.type_int=0;Lexerror=1;fprintf(stderr,"Error type A at Line %d: Illegal INT: \'%s\'\n",yylineno, yytext);return INT;}
+{INT_E}     {yylval.type_int=0;Lexerror=1;fprintf(stdout,"Error type A at Line %d: Illegal INT: \'%s\'\n",yylineno, yytext);return INT;}
 {FLOAT}     {yylval.type_float=atof(yytext);return FLOAT;}
-{FLOAT_E}   {yylval.type_float=0;Lexerror=1;fprintf(stderr,"Error type A at Line %d: Illegal FLOAT: \'%s\'\n",yylineno, yytext);return FLOAT;}
+{FLOAT_E}   {yylval.type_float=0;Lexerror=1;fprintf(stdout,"Error type A at Line %d: Illegal FLOAT: \'%s\'\n",yylineno, yytext);return FLOAT;}
 {ID}        {/*printf("ID:%s\n",yytext);*/yylval.type_char=yytext;return ID;}
-.           {Lexerror=1;fprintf(stderr,"Error type A at Line %d: Mysterious characters \'%s\'\n",yylineno, yytext);}
+.           {Lexerror=1;fprintf(stdout,"Error type A at Line %d: Mysterious characters \'%s\'\n",yylineno, yytext);}
 
 %%

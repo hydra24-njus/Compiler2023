@@ -13,6 +13,6 @@ int main(int argc,char** argv){
     }
     yyrestart(f);//将flex输入文件的指针设为f，并指向文件开头。
     yyparse();//对输入文件进行分析
-    if(!(Lexerror||Synerror))fprintf(stderr,"pass\n");
+    if(!(Lexerror||Synerror))fprintf(stdout,"pass\n");
     return 0;
 }
