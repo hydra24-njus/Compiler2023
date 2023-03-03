@@ -62,9 +62,11 @@ ID          {letter}({digit}|{letter})*
              //TODO:yycolumn;
             }
 "/*"        {int lineno_now=yylineno;char c1=input(),c2=input();
+             //printf("%c%c",c1,c2);
              while(c2&&!(c1=='*'&&c2=='/')){
                 if(c2=='\r'||c2=='\n')yycolumn=1;
                 else yycolumn++;
+                //printf("%c",c2);
                 c1=c2;c2=input();
              }
              if(!c2){
@@ -103,7 +105,7 @@ ID          {letter}({digit}|{letter})*
 {INT_E}     {yylval.type_int=0;Lexerror=1;fprintf(stderr,"Error type A at Line %d: Illegal INT: \'%s\'\n",yylineno, yytext);return INT;}
 {FLOAT}     {yylval.type_float=atof(yytext);return FLOAT;}
 {FLOAT_E}   {yylval.type_float=0;Lexerror=1;fprintf(stderr,"Error type A at Line %d: Illegal FLOAT: \'%s\'\n",yylineno, yytext);return FLOAT;}
-{ID}        {yylval.type_char=yytext;return ID;}
+{ID}        {/*printf("ID:%s\n",yytext);*/yylval.type_char=yytext;return ID;}
 .           {Lexerror=1;fprintf(stderr,"Error type A at Line %d: Mysterious characters \'%s\'\n",yylineno, yytext);}
 
 %%
