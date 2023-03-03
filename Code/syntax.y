@@ -12,10 +12,12 @@ unsigned check(int lineno){
     _error[cnt++]=lineno;
     return 1;
 }
+//#define YYDEBUG 1
+//int yydebug=1;
 #define CERROR(msg)\
         Synerror=1;\
         if(check(yylineno))\
-            printf("Error type B at line %d: %s",yylineno,msg);
+            //printf("Error type B at line %d: %s",yylineno,msg);
 %}
 /* declared types */
 %union {
@@ -83,8 +85,7 @@ Specifier:      TYPE                        {}
     ;
 StructSpecifier:STRUCT OptTag LC DefList RC {}
     |           STRUCT Tag                  {}
-    |           STRUCT error OptTag LC DefList RC        {CERROR("Illegal identifier\n");}
-    |           STRUCT error SEMI           {CERROR("syntax error\n");}
+    |           STRUCT error                {CERROR("Illegal identifier\n");}
     ;
 OptTag:         ID                          {}
     |                                       {}
@@ -109,6 +110,7 @@ CompSt:         LC DefList StmtList RC      {}
     ;
 StmtList:       Stmt StmtList               {}
     |                                       {}
+    |           Stmt Specifier error SEMI StmtList  {CERROR("Illegal declaration\n");}
     ;
 Stmt:           Exp SEMI                    {}
     |           CompSt                      {}
@@ -123,10 +125,9 @@ Stmt:           Exp SEMI                    {}
 // 7.1.6 Local Definitions
 DefList:        Def DefList                 {}
     |                                       {}
-    |           error DefList               {CERROR("Illegal declaration\n");}
     ;
 Def:            Specifier DecList SEMI      {}
-    |           Specifier error SEMI        {CERROR("Expected variable\n");}
+    |           Specifier error SEMI        {CERROR("Wrong variable\n");}
     ;
 DecList:        Dec                         {}
     |           Dec COMMA DecList           {}
@@ -159,3 +160,8 @@ Exp:            Exp ASSIGNOP Exp            {}
 Args:           Exp COMMA Args              {}
     |           Exp                         {}
 %%
+int yyerror(char* msg){
+    Synerror=1;
+    fprintf(stderr, "Error at line %d: \"%s\"\n",yylineno,yytext);
+    return 0;
+}
