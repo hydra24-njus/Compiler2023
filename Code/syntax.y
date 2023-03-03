@@ -126,7 +126,7 @@ Exp:            Exp ASSIGNOP Exp            {}
     |           Exp AND Exp                 {}
     |           Exp OR Exp                  {}
     |           Exp RELOP Exp               {}
-    |           Exp RELOP error Exp         {fprintf(stderr,"Unexpected op\n");}
+    |           Exp RELOP error             {fprintf(stderr,"Unexpected op\n");}
     |           Exp PLUS Exp                {}
     |           Exp MINUS Exp               {}
     |           Exp STAR Exp                {}
