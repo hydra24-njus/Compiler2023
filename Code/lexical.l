@@ -47,8 +47,12 @@ INT_16      0[xX][0-9a-fA-F]+
 INT_16E     (0[xX][0-9a-fA-F][g-zG-Z][0-9a-zA-Z]*)|(0[xX][g-zG-Z][0-9a-zA-Z]*)
 INT         {INT_8}|{INT_10}|{INT_16}
 INT_E       {INT_8E}|{INT_16E}
-FLOAT       {digit}+"."{digit}+
-FLOAT_E     ("."{digit}+)|({digit}+".")
+FLOAT_N     {digit}+"."{digit}+
+FLOAT_S     ([0-9]+\.[0-9]*[eE][+-]?[0-9]+)|([0-9]*\.[0-9]+[eE][+-]?[0-9]+)
+FLOAT       {FLOAT_N}|{FLOAT_S}
+FLOAT_EN    ("."{digit}+)|({digit}+".")
+FLOAT_ES    (([0-9]+\.[0-9]*)|([0-9]*\.[0-9]+))[eE][+-]?([0-9]*\.[0-9]*)?
+FLOAT_E     {FLOAT_EN}|{FLOAT_ES}
 ID          {letter}({digit}|{letter})*
 %%
 {space}     {}

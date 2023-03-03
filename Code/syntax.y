@@ -132,7 +132,7 @@ Exp:            Exp ASSIGNOP Exp            {}
     |           Exp STAR Exp                {}
     |           Exp DIV Exp                 {}
     |           LP Exp RP                   {}
-    |           MINUS Exp %prec NEG         {fprintf(stderr,"neg\n");}
+    |           MINUS Exp %prec NEG         {}
     |           NOT Exp                     {}
     |           ID LP Args RP               {}
     |           ID LP RP                    {}
