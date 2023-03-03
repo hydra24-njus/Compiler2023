@@ -14,10 +14,7 @@ unsigned check(int lineno){
 }
 //#define YYDEBUG 1
 //int yydebug=1;
-#define CERROR(msg)\
-        Synerror=1;\
-        if(check(yylineno))\
-            //printf("Error type B at line %d: %s",yylineno,msg);
+char buf[256];
 %}
 /* declared types */
 %union {
@@ -77,7 +74,7 @@ ExtDef:         Specifier ExtDecList SEMI   {}
     ;
 ExtDecList:     VarDec                      {}
     |           VarDec COMMA ExtDecList     {}
-    |           VarDec error                {CERROR("global variable error\n");}
+    |           VarDec error                {printf("Error type B at line %d: global variable error\n",@1.first_line);}
     ;
 // 7.1.3 Specifiers
 Specifier:      TYPE                        {}
@@ -85,7 +82,7 @@ Specifier:      TYPE                        {}
     ;
 StructSpecifier:STRUCT OptTag LC DefList RC {}
     |           STRUCT Tag                  {}
-    |           STRUCT error                {CERROR("Illegal identifier\n");}
+    |           STRUCT error                {printf("Error type B at line %d: Illegal identifier\n",@1.first_line);}
     ;
 OptTag:         ID                          {}
     |                                       {}
@@ -95,7 +92,7 @@ Tag:            ID                          {}
 // 7.1.4 Declarators
 VarDec:         ID                          {}
     |           VarDec LB INT RB            {}
-    |           VarDec LB error RB          {CERROR("Definition of an array only accepts an INT dimension\n");}
+    |           VarDec LB error RB          {printf("Error type B at line %d: Definition of an array only accepts an INT dimension\n",@1.first_line);}
     ;
 FunDec:         ID LP VarList RP            {}
     |           ID LP RP                    {}
@@ -110,7 +107,7 @@ CompSt:         LC DefList StmtList RC      {}
     ;
 StmtList:       Stmt StmtList               {}
     |                                       {}
-    |           Stmt Specifier error SEMI StmtList  {CERROR("Illegal declaration\n");}
+    |           Stmt Specifier error SEMI StmtList  {printf("Error type B at line %d: Illegal declaration\n",@2.first_line);}
     ;
 Stmt:           Exp SEMI                    {}
     |           CompSt                      {}
@@ -118,16 +115,16 @@ Stmt:           Exp SEMI                    {}
     |           IF LP Exp RP Stmt %prec LOWER_THAN_ELSE {}
     |           IF LP Exp RP Stmt ELSE Stmt {}
     |           WHILE LP Exp RP Stmt        {}
-    |           WHILE LP Exp error          {CERROR("Expected \")\"\n");}
-    |           Exp COMMA error SEMI        {CERROR("Unexpected \",\"\n");}
-    |           Exp error                   {CERROR("missing \";\"\n");}
+    |           WHILE LP Exp error          {printf("Error type B at line %d: Expected \")\"\n",@1.first_line);}
+    |           Exp COMMA error SEMI        {printf("Error type B at line %d: Unexpected \",\"\n",@1.first_line);}
+    |           Exp error                   {printf("Error type B at line %d: missing \";\"\n",@1.first_line);}
     ;
 // 7.1.6 Local Definitions
 DefList:        Def DefList                 {}
     |                                       {}
     ;
 Def:            Specifier DecList SEMI      {}
-    |           Specifier error SEMI        {CERROR("Wrong variable\n");}
+    |           Specifier error SEMI        {printf("Error type B at line %d: Wrong variable\n",@1.first_line);}
     ;
 DecList:        Dec                         {}
     |           Dec COMMA DecList           {}
@@ -140,7 +137,7 @@ Exp:            Exp ASSIGNOP Exp            {}
     |           Exp AND Exp                 {}
     |           Exp OR Exp                  {}
     |           Exp RELOP Exp               {}
-    |           Exp RELOP error             {CERROR("Unexpected op\n");}
+    |           Exp RELOP error             {printf("Error type B at line %d: Unexpected op\n",@1.first_line);}
     |           Exp PLUS Exp                {}
     |           Exp MINUS Exp               {}
     |           Exp STAR Exp                {}
@@ -151,7 +148,7 @@ Exp:            Exp ASSIGNOP Exp            {}
     |           ID LP Args RP               {}
     |           ID LP RP                    {}
     |           Exp LB Exp RB               {}
-    |           Exp LB error RB             {CERROR("Error dimension\n");}
+    |           Exp LB error RB             {printf("Error type B at line %d: Error dimension\n",@1.first_line);}
     |           Exp DOT ID                  {}
     |           ID                          {}
     |           INT                         {}
@@ -162,6 +159,6 @@ Args:           Exp COMMA Args              {}
 %%
 int yyerror(char* msg){
     Synerror=1;
-    fprintf(stderr, "Error at line %d: \"%s\"\n",yylineno,yytext);
+    //fprintf(stderr, "Error type B at line %d: \"%s\"\n",yylineno,buf);
     return 0;
 }
