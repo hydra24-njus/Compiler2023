@@ -5,6 +5,7 @@
 #include "syntax.tab.h"
 #include <stdlib.h>
 #include <stdio.h>
+#include "tree.h"
 int yycolumn=1;
 extern int Lexerror;
 #define YY_USER_ACTION \
@@ -77,35 +78,35 @@ ID          {letter}({digit}|{letter})*
              else yycolumn++;
              //貌似没有必要维护 yycolumn
             }
-{SEMI}      {return SEMI;}
-{COMMA}     {return COMMA;}
-{ASSIGNOP}  {return ASSIGNOP;}
-{RELOP}     {return RELOP;}
-{PLUS}      {return PLUS;}
-{MINUS}     {return MINUS;}
-{STAR}      {return STAR;}
-{DIV}       {return DIV;}
-{AND}       {return AND;}
-{OR}        {return OR;}
-{DOT}       {return DOT;}
-{NOT}       {return NOT;}
-{TYPE}      {return TYPE;}
-{LP}        {return LP;}
-{RP}        {return RP;}
-{LB}        {return LB;}
-{RB}        {return RB;}
-{LC}        {return LC;}
-{RC}        {return RC;}
-{STRUCT}    {return STRUCT;}
-{RETURN}    {return RETURN;}
-{IF}        {return IF;}
-{ELSE}      {return ELSE;}
-{WHILE}     {return WHILE;}
-{INT}       {yylval.type_int=strtol(yytext,NULL,0);return INT;}//a good function strtol(const char* nptr,char** endptr,int base);endptr为NULL则转换完整字符串、base为0则根据形式决定进制
-{INT_E}     {yylval.type_int=0;Lexerror=1;fprintf(stdout,"Error type A at Line %d: Illegal INT: \'%s\'\n",yylineno, yytext);return INT;}
-{FLOAT}     {yylval.type_float=atof(yytext);return FLOAT;}
-{FLOAT_E}   {yylval.type_float=0;Lexerror=1;fprintf(stdout,"Error type A at Line %d: Illegal FLOAT: \'%s\'\n",yylineno, yytext);return FLOAT;}
-{ID}        {/*printf("ID:%s\n",yytext);*/yylval.type_char=yytext;return ID;}
+{SEMI}      {yylval.type_node=creat_node(NULL,NULL,lexother,0,0,0,"SEMI");return SEMI;}
+{COMMA}     {yylval.type_node=creat_node(NULL,NULL,lexother,0,0,0,"COMMA");return COMMA;}
+{ASSIGNOP}  {yylval.type_node=creat_node(NULL,NULL,lexother,0,0,0,"ASSIGNOP");return ASSIGNOP;}
+{RELOP}     {yylval.type_node=creat_node(NULL,NULL,lexother,0,0,0,"RELOP");return RELOP;}
+{PLUS}      {yylval.type_node=creat_node(NULL,NULL,lexother,0,0,0,"PLUS");return PLUS;}
+{MINUS}     {yylval.type_node=creat_node(NULL,NULL,lexother,0,0,0,"MINUS");return MINUS;}
+{STAR}      {yylval.type_node=creat_node(NULL,NULL,lexother,0,0,0,"STAR");return STAR;}
+{DIV}       {yylval.type_node=creat_node(NULL,NULL,lexother,0,0,0,"DIV");return DIV;}
+{AND}       {yylval.type_node=creat_node(NULL,NULL,lexother,0,0,0,"AND");return AND;}
+{OR}        {yylval.type_node=creat_node(NULL,NULL,lexother,0,0,0,"OR");return OR;}
+{DOT}       {yylval.type_node=creat_node(NULL,NULL,lexother,0,0,0,"DOT");return DOT;}
+{NOT}       {yylval.type_node=creat_node(NULL,NULL,lexother,0,0,0,"NOT");return NOT;}
+{TYPE}      {yylval.type_node=creat_node(NULL,NULL,lextype,0,0,0,yytext);return TYPE;}
+{LP}        {yylval.type_node=creat_node(NULL,NULL,lexother,0,0,0,"LP");return LP;}
+{RP}        {yylval.type_node=creat_node(NULL,NULL,lexother,0,0,0,"RP");return RP;}
+{LB}        {yylval.type_node=creat_node(NULL,NULL,lexother,0,0,0,"LB");return LB;}
+{RB}        {yylval.type_node=creat_node(NULL,NULL,lexother,0,0,0,"RB");return RB;}
+{LC}        {yylval.type_node=creat_node(NULL,NULL,lexother,0,0,0,"LC");return LC;}
+{RC}        {yylval.type_node=creat_node(NULL,NULL,lexother,0,0,0,"RC");return RC;}
+{STRUCT}    {yylval.type_node=creat_node(NULL,NULL,lexother,0,0,0,"STRUCT");return STRUCT;}
+{RETURN}    {yylval.type_node=creat_node(NULL,NULL,lexother,0,0,0,"RETURN");return RETURN;}
+{IF}        {yylval.type_node=creat_node(NULL,NULL,lexother,0,0,0,"IF");return IF;}
+{ELSE}      {yylval.type_node=creat_node(NULL,NULL,lexother,0,0,0,"ELSE");return ELSE;}
+{WHILE}     {yylval.type_node=creat_node(NULL,NULL,lexother,0,0,0,"WHILE");return WHILE;}
+{INT}       {yylval.type_node=creat_node(NULL,NULL,lexint,0,strtol(yytext,NULL,0),0,0);return INT;}//a good function strtol(const char* nptr,char** endptr,int base);endptr为NULL则转换完整字符串、base为0则根据形式决定进制
+{INT_E}     {yylval.type_node=creat_node(NULL,NULL,lexint,0,0,0,0);Lexerror=1;fprintf(stdout,"Error type A at Line %d: Illegal INT: \'%s\'\n",yylineno, yytext);return INT;}
+{FLOAT}     {yylval.type_node=creat_node(NULL,NULL,lexfloat,0,0,atof(yytext),0);return FLOAT;}
+{FLOAT_E}   {yylval.type_node=creat_node(NULL,NULL,lexfloat,0,0,0,0);Lexerror=1;fprintf(stdout,"Error type A at Line %d: Illegal FLOAT: \'%s\'\n",yylineno, yytext);return FLOAT;}
+{ID}        {yylval.type_node=creat_node(NULL,NULL,lexid,0,0,0,yytext);return ID;}
 .           {Lexerror=1;fprintf(stdout,"Error type A at Line %d: Mysterious characters \'%s\'\n",yylineno, yytext);}
 
 %%
