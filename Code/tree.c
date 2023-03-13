@@ -1,8 +1,8 @@
 #include "tree.h"
-Node *creat_node(Node *child,Node *next,unsigned node_type,int lineno,int ii,float if_,char *ic){
+Node *creat_node(unsigned node_type,int lineno,int ii,float if_,char *ic){
     Node *new_node=malloc(sizeof(Node));
-    new_node->child     =     child;
-    new_node->next      =      next;
+    new_node->child     =      NULL;
+    new_node->next      =      NULL;
     new_node->node_type = node_type;
     new_node->lineno    =    lineno;
     char *nstr=NULL;

@@ -1,6 +1,8 @@
 #ifndef __TREE_H__
 #define __TREE_H__
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
     /*
 *   每个词素作为一个节点
 *   每个语法单元作为一个节点
@@ -25,7 +27,7 @@ typedef struct node{
 
 
 // 创建一个节点，包括
-Node *creat_node(Node *child,Node *next,unsigned node_type,int lineno,int ii,float if_,char *ic);
+Node *creat_node(unsigned node_type,int lineno,int ii,float if_,char *ic);
 void build_tree(Node *father,Node *child);
 void print_tree(Node *root,int deep);
 #endif
