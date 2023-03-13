@@ -8,3 +8,4 @@ Code/syntax.output
 Code/syntax.tab.o
 Code/main.o
 Code/syntax.tab.h
+Code/tree.o
