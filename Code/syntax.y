@@ -48,6 +48,9 @@ unsigned check(int lineno){
 %type <type_node> Exp Args
 
 
+%nonassoc LOWER_THAN_ELSE
+%nonassoc ELSE
+
 %right ASSIGNOP
 %left OR
 %left AND
@@ -55,10 +58,8 @@ unsigned check(int lineno){
 %left PLUS MINUS
 %left STAR DIV
 %right NOT NEG
-%left LP RP LB RB DOT
+%left LP RP LB RB LC RC DOT
 
-%nonassoc LOWER_THAN_ELSE
-%nonassoc ELSE
 
 %%
 // 7.1.2 High-level Definitions
@@ -142,11 +143,11 @@ Exp:            Exp ASSIGNOP Exp            {$$=creat_node(synunit,@$.first_line
     |           Exp AND Exp                 {$$=creat_node(synunit,@$.first_line,0,0,"Exp");build_tree($$,$3);build_tree($$,$2);build_tree($$,$1);}
     |           Exp OR Exp                  {$$=creat_node(synunit,@$.first_line,0,0,"Exp");build_tree($$,$3);build_tree($$,$2);build_tree($$,$1);}
     |           Exp RELOP Exp               {$$=creat_node(synunit,@$.first_line,0,0,"Exp");build_tree($$,$3);build_tree($$,$2);build_tree($$,$1);}
-    |           Exp RELOP error             {if(check(@1.first_line))printf("Error type B at line %d: Unexpected op\n",@1.first_line);}
     |           Exp PLUS Exp                {$$=creat_node(synunit,@$.first_line,0,0,"Exp");build_tree($$,$3);build_tree($$,$2);build_tree($$,$1);}
     |           Exp MINUS Exp               {$$=creat_node(synunit,@$.first_line,0,0,"Exp");build_tree($$,$3);build_tree($$,$2);build_tree($$,$1);}
     |           Exp STAR Exp                {$$=creat_node(synunit,@$.first_line,0,0,"Exp");build_tree($$,$3);build_tree($$,$2);build_tree($$,$1);}
     |           Exp DIV Exp                 {$$=creat_node(synunit,@$.first_line,0,0,"Exp");build_tree($$,$3);build_tree($$,$2);build_tree($$,$1);}
+    |           EExp error                  {if(check(@1.first_line))printf("Error type B at line %d: Unexpected op\n",@1.first_line);}
     |           LP Exp RP                   {$$=creat_node(synunit,@$.first_line,0,0,"Exp");build_tree($$,$3);build_tree($$,$2);build_tree($$,$1);}
     |           LP error RP                 {if(check(@1.first_line))printf("Error type B at line %d: Error Exp in\"()\"\n",@1.first_line);}
     |           MINUS Exp %prec NEG         {$$=creat_node(synunit,@$.first_line,0,0,"Exp");build_tree($$,$2);build_tree($$,$1);}
@@ -161,12 +162,21 @@ Exp:            Exp ASSIGNOP Exp            {$$=creat_node(synunit,@$.first_line
     |           INT                         {$$=creat_node(synunit,@$.first_line,0,0,"Exp");build_tree($$,$1);}
     |           FLOAT                       {$$=creat_node(synunit,@$.first_line,0,0,"Exp");build_tree($$,$1);}
     ;
+EExp:           Exp ASSIGNOP                {}
+    |           Exp AND                     {}
+    |           Exp OR                      {}
+    |           Exp RELOP                   {}
+    |           Exp PLUS                    {}
+    |           Exp MINUS                   {}
+    |           Exp STAR                    {}
+    |           Exp DIV                     {}
+    ;
 Args:           Exp COMMA Args              {$$=creat_node(synunit,@$.first_line,0,0,"Args");build_tree($$,$3);build_tree($$,$2);build_tree($$,$1);}
     |           Exp                         {$$=creat_node(synunit,@$.first_line,0,0,"Args");build_tree($$,$1);}
 %%
 int yyerror(char* msg){
     Synerror=1;
     
-    //fprintf(stderr, "Error type B at line %d: \"%s\"\n",yylineno);
+    fprintf(stderr, "Error type B at line %d: \"%s\"\n",yylineno,msg);
     return 0;
 }
