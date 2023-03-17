@@ -5,7 +5,7 @@ extern int yyparse();
 extern void yyrestart(FILE*);
 int Lexerror=0,Synerror=0;
 Node *root=NULL;
-
+#define _PRINT_
 int main(int argc,char** argv){
     if(argc<=1)return 1;
     FILE *f=fopen(argv[1],"r");
