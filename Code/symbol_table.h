@@ -6,7 +6,7 @@
 
 typedef struct Type_* Type;
 typedef struct FieldList_* FieldList;
-typedef struct SymbolNode_* sNode_p;
+typedef struct SymbolNode_* sNode;
 
 #define TABLE_SIZE 0x3fff
 
@@ -32,8 +32,9 @@ struct SymbolNode_{
     struct SymbolNode_ *next;
     struct SymbolNode_ *behind;
     enum { VARIABLE=0,STRUCT,FUNCTION} kind;
-    FieldList field;
+    struct FieldList_ field;
 };
 
 void symboltable_init();
+void insert_node(Type type,char *name);
 #endif

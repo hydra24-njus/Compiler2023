@@ -1,5 +1,5 @@
 #include<stdio.h>
-#include "tree.h"
+#include "semantic.h"
 extern int yylineno;
 extern int yyparse();
 extern void yyrestart(FILE*);
@@ -18,6 +18,11 @@ int main(int argc,char** argv){
         #ifdef _DEBUG_
         printf("pass\n");
         #endif
+        if(semantic(root)){
+            printf("error in semantic.\n");
+            return 1;//there must bu something error
+        }
+        //do something
     }
     return 0;
 }
