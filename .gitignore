@@ -4,8 +4,5 @@ Code/syntax.tab.c
 Code/scanner
 Code/parser
 Code/syntax.output
-.gitignore
-Code/syntax.tab.o
-Code/main.o
 Code/syntax.tab.h
-Code/tree.o
+Code/*.o
