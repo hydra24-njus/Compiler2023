@@ -14,8 +14,10 @@ unsigned check(int lineno){
     _error[cnt++]=lineno;
     return 1;
 }
-//#define YYDEBUG 1
-//int yydebug=1;
+#ifdef _DEBUG_
+#define YYDEBUG 1
+int yydebug=1;
+#endif
 %}
 
 %union{
@@ -71,6 +73,8 @@ ExtDefList:     ExtDef ExtDefList           {$$=creat_node(synunit,@$.first_line
 ExtDef:         Specifier ExtDecList SEMI   {$$=creat_node(synunit,@$.first_line,0,0,"ExtDef");build_tree($$,$3);build_tree($$,$2);build_tree($$,$1);}
     |           Specifier SEMI              {$$=creat_node(synunit,@$.first_line,0,0,"ExtDef");build_tree($$,$2);build_tree($$,$1);}
     |           Specifier FunDec CompSt     {$$=creat_node(synunit,@$.first_line,0,0,"ExtDef");build_tree($$,$3);build_tree($$,$2);build_tree($$,$1);}
+    |           Specifier FunDec SEMI       {$$=creat_node(synunit,@$.first_line,0,0,"ExtDef");build_tree($$,$3);build_tree($$,$2);build_tree($$,$1);}
+    |           error SEMI                  {$$=NULL;if(check(@1.first_line))printf("Error type B at line %d: \n",@1.first_line);}
     ;
 ExtDecList:     VarDec                      {$$=creat_node(synunit,@$.first_line,0,0,"ExtDecList");build_tree($$,$1);}
     |           VarDec COMMA ExtDecList     {$$=creat_node(synunit,@$.first_line,0,0,"ExtDecList");build_tree($$,$3);build_tree($$,$2);build_tree($$,$1);}
