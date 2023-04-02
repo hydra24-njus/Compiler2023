@@ -11,7 +11,7 @@ typedef struct SymbolNode_* sNode;
 #define TABLE_SIZE 0x3fff
 
 struct Type_{
-enum { BASIC, ARRAY, STRUCTURE } kind;
+enum { BASIC, ARRAY, STRUCTURE, FUNCTION_T } kind;
     union{
     // 基本类型
     enum { INT, FLOAT } basic;
@@ -19,6 +19,7 @@ enum { BASIC, ARRAY, STRUCTURE } kind;
     struct { Type elem; int size; } array;
     // 结构体类型信息是一个链表
     FieldList structure;
+    struct { Type returntype;int paramscnt;FieldList paramlist;}function;
     }u;
 };
 
@@ -29,7 +30,7 @@ struct FieldList_{
 };
 
 struct SymbolNode_{
-    enum { VARIABLE=0,STRUCT,FUNCTION} kind;
+    enum { VARIABLE=0,STRUCT=2,FUNCTION=3} kind;
     char *name;
     Type type;
     struct SymbolNode_ *next;

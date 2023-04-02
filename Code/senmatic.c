@@ -14,6 +14,29 @@ static struct Type_ type_float={
     .kind=BASIC,
     .u.basic=FLOAT
 };
+static int senmatic_error=0;
+static char* error_msg[20]={
+    "",//0 占位
+    "Undefined variable",//1
+    "Undefined function",//2
+    "Redefined variable",//3
+    "Redefined function",//4
+    "Type mismatched for assignment",//5
+    "The left-hand side of an assignment must be a variable",//6
+    "Type mismatched for operands",//7
+    "Type mismatched for return",//8
+    "Function is not applicable for arguments",//9
+    "variable is not an array",//10
+    "variable is not a function",//11
+    "constant is not an integer",//12
+    "Illegal use of \".\"",//13
+    "Non-existent field",//14
+    "Redefined field",//15
+    "Duplicated name",//16
+    "Undefined structure",//17
+    "Undefined function",//18
+    "Inconsistent declaration of function"//19
+};
 
 int semantic(Node *root){
     if(root==NULL){
@@ -47,25 +70,28 @@ void ExtDefList_analyse(Node *root){
 
 void ExtDef_analyse(Node *root){
     Node *child1=NULL,*child2=NULL,*child3=NULL;
+    Type type=NULL;
     child1=root->child;
     if(child1->next)child2=child1->next;
     if(child2&&child1->next)child3=child2->next;
     if(child1&&child2&&child3){
         if(strcmp(child1->info_char,"Specifier")==0&&strcmp(child2->info_char,"ExtDecList")==0&&strcmp(child3->info_char,"SEMI")==0){
             debug("ExtDef -> Specifier ExtDecList SEMI\n");
-            Specifier_analyse(child1);
-            ExtDecList_analyse(child2);
+            type=Specifier_analyse(child1);
+            ExtDecList_analyse(child2,type);
         }
         else if(strcmp(child1->info_char,"Specifier")==0&&strcmp(child2->info_char,"FunDec")==0&&strcmp(child3->info_char,"CompSt")==0){
             debug("ExtDef -> Specifier FunDec CompSt\n");
-            Specifier_analyse(child1);
-            FunDec_analyse(child2);
+            //TODO:进入新的作用域
+            type=Specifier_analyse(child1);
+            FunDec_analyse(child2,type);
             CompSt_analyse(child3);
         }
         else if(strcmp(child1->info_char,"Specifier")==0&&strcmp(child2->info_char,"FunDec")==0&&strcmp(child3->info_char,"SEMI")==0){
             debug("ExtDef -> Specifier FunDec SEMI\n");
-            Specifier_analyse(child1);
-            FunDec_analyse(child2);
+            //TODO:进入新的作用域
+            type=Specifier_analyse(child1);
+            FunDec_analyse(child2,type);
         }
         else{
             debug("error in ExtDef_analyse\n");
@@ -74,7 +100,6 @@ void ExtDef_analyse(Node *root){
     }
     else if(child1&&child2){
         debug("ExtDef -> Specifier SEMI\n");
-        Specifier_analyse(child1);
     }
     else{
         debug("error in ExtDef_analyse\n");
@@ -82,7 +107,7 @@ void ExtDef_analyse(Node *root){
     }
 }
 
-void ExtDecList_analyse(Node *node){
+void ExtDecList_analyse(Node *node,Type type){
     Node *child1=node->child,*child2=NULL,*child3=NULL;
     if(child1->next){
         child2=child1->next;
@@ -93,7 +118,7 @@ void ExtDecList_analyse(Node *node){
     if(child1&&child2&&child3){
         debug("ExtDecList -> VarDec COMMA ExtDecList\n");
         VarDec_analyse(child1);
-        ExtDecList_analyse(child3);
+        ExtDecList_analyse(child3,type);
     }
     else if(child1){
         debug("VarDec");
@@ -126,11 +151,40 @@ Type Specifier_analyse(Node *node){
     }
     return type;
 }
+
 void StructSpecifier_analyse(Node *node){return;}
 void OptTag_analyse(Node *node){return;}
 void Tag_analyse(Node *node){return;}
 void VarDec_analyse(Node *node){return;}
-void FunDec_analyse(Node *node){return;}
+
+void FunDec_analyse(Node *node,Type type){
+    Node *id=node->child;
+    Node *varlist=id->next->next;
+
+    Type functype=malloc(sizeof(struct Type_));
+    functype->kind=FUNCTION_T;
+    functype->u.function.returntype=type;
+
+    if(strcmp(varlist->info_char,"VarList")==0){
+        debug("FunDec -> ID LP VarList RP\n");
+        //TODO:创建一个field
+    }
+    else{
+        debug("FunDec -> ID LP RP\n");
+        functype->u.function.paramscnt=0;
+        functype->u.function.paramlist=NULL;
+        Type qtype=query_symbol(id->info_char);
+        if(qtype==NULL){
+            //未定义 or 声明的函数
+            insert_node(functype,id->info_char);
+        }
+        else{
+            
+        }
+    }
+    return;
+}
+
 void VarList_analyse(Node *node){return;}
 void ParamDec_analyse(Node *node){return;}
 
@@ -138,7 +192,6 @@ void CompSt_analyse(Node *node){
     Node *lc=node->child;
     Node *deflist=lc->next;
     Node *child=deflist->next;
-    //todo:进入新的作用域
     if(strcmp(child->info_char,"StmtList")==0){
         debug("CompSt -> LC DefList StmtList RC\n");
         DefList_analyse(deflist);
@@ -148,7 +201,6 @@ void CompSt_analyse(Node *node){
         debug("CompSt -> LC DefList StmtList(empty) RC\n");
         DefList_analyse(deflist);
     }
-    //todo:退出这个作用域
     return;
 }
 

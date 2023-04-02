@@ -23,6 +23,7 @@ int main(int argc,char** argv){
             return 1;//there must bu something error
         }
         //do something
+        print_table();
     }
     return 0;
 }

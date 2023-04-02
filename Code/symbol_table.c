@@ -24,22 +24,25 @@ void insert_node(Type type,char *name){
         exit(0);
     }
     int index=hash(name);
+    printf("index=%d\n",index);
     struct SymbolNode_ *node=malloc(sizeof(struct SymbolNode_));
+    node->name=name;
     node->next=NULL;
-    if(hashtable[index]==NULL){
-        hashtable[index]=node;
+    node->type=type;
+    if(hashtable[index]->next==NULL){
+        hashtable[index]->next=node;
     }
     else{
-        node->next=hashtable[index];
-        hashtable[index]=node;
+        node->next=hashtable[index]->next;
+        hashtable[index]->next=node;
     }
 }
 Type query_symbol(char *name){
     int index=hash(name);
     sNode ret=NULL;
     for(sNode i=hashtable[index]->next;i;i=i->next){
-        if(!strcmp(name,i->name)){
-            ret=i;
+        if(strcmp(name,i->name)==0){
+            ret=i;//最深层的
         }
     }
     if(ret){
@@ -53,7 +56,7 @@ void print_table(){
         if(hashtable[i]!=NULL){
             sNode node=hashtable[i]->next;
             while(node!=NULL){
-                printf("{name:}");
+                printf("{name:%s,type:%d}->",node->name,node->type->kind);
                 node=node->next;
             }
         }
