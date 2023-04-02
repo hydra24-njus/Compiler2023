@@ -14,7 +14,7 @@ struct Type_{
 enum { BASIC, ARRAY, STRUCTURE } kind;
     union{
     // 基本类型
-    int basic;
+    enum { INT, FLOAT } basic;
     // 数组类型信息包括元素类型与数组大小构成
     struct { Type elem; int size; } array;
     // 结构体类型信息是一个链表
@@ -29,12 +29,15 @@ struct FieldList_{
 };
 
 struct SymbolNode_{
-    struct SymbolNode_ *next;
-    struct SymbolNode_ *behind;
     enum { VARIABLE=0,STRUCT,FUNCTION} kind;
-    struct FieldList_ field;
+    char *name;
+    Type type;
+    struct SymbolNode_ *next;
+    unsigned depth;
 };
 
 void symboltable_init();
 void insert_node(Type type,char *name);
+Type query_symbol(char *name);
+void print_table();
 #endif
