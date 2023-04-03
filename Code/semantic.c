@@ -63,7 +63,7 @@ void ExtDefList_analyse(Node *root){
         ExtDefList_analyse(child2);
     }
     else{
-        debug("ExtDefList -> ExtDef (empty)\n");
+        debug("ExtDefList -> ExtDef ExtDefList(empty)\n");
     }
     ExtDef_analyse(child1);
 }
@@ -117,7 +117,14 @@ void ExtDecList_analyse(Node *node,Type type){
     }
     if(child1&&child2&&child3){
         debug("ExtDecList -> VarDec COMMA ExtDecList\n");
-        VarDec_analyse(child1);
+        FieldList field=VarDec_analyse(child1,type);
+        if(query_symbol(field->name)!=NULL){
+            //TODO:报错
+        }
+        else{
+            insert_node(field->type,field->name);
+            free(field);
+        }
         ExtDecList_analyse(child3,type);
     }
     else if(child1){
@@ -141,7 +148,8 @@ Type Specifier_analyse(Node *node){
             type=&type_float;
         }
         else{
-            debug("%s %d\n",child1->info_char,strcmp(child1->info_char,"FLOAT"));
+            debug("should not reach here\n");
+            exit(1);
         }
     }
     else{
@@ -153,9 +161,27 @@ Type Specifier_analyse(Node *node){
 }
 
 void StructSpecifier_analyse(Node *node){return;}
+
 void OptTag_analyse(Node *node){return;}
+
 void Tag_analyse(Node *node){return;}
-void VarDec_analyse(Node *node){return;}
+
+FieldList VarDec_analyse(Node *node,Type type){
+    Node *child1=node->child;
+    if(child1->node_type==lexid){
+        debug("VarDec -> ID\n");
+        FieldList field=malloc(sizeof(struct FieldList_));
+        field->name=child1->info_char;
+        field->type=type;
+        return field;
+    }
+    else{
+        debug("VarDec -> VarDec LB INT RB\n");
+        Node *child2=child1->next->next;
+        //TODO:
+    }
+    return NULL;
+}
 
 void FunDec_analyse(Node *node,Type type){
     Node *id=node->child;
@@ -186,6 +212,7 @@ void FunDec_analyse(Node *node,Type type){
 }
 
 void VarList_analyse(Node *node){return;}
+
 void ParamDec_analyse(Node *node){return;}
 
 void CompSt_analyse(Node *node){
@@ -208,7 +235,7 @@ void StmtList_analyse(Node *node){
     Node *stmt=node->child;
     Node *stmtlist=stmt->next;
     if(stmtlist==NULL){
-        debug("STMT -> STMT empty\n");
+        debug("StmtList -> STMT StmtList(empty)\n");
         Stmt_analyse(stmt);
     }
     else{
@@ -219,7 +246,48 @@ void StmtList_analyse(Node *node){
     return;
 }
 
-void Stmt_analyse(Node *node){return;}
+void Stmt_analyse(Node *node){
+    Node *child1=node->child;
+    Node *child2=NULL;
+    Node *child3=NULL;
+    Node *child4=NULL;
+    if(strcmp(child1->info_char,"CompSt")==0){
+        debug("Stmt -> CompSt\n");
+        //TODO:进入新作用域并分析
+    }
+    else if(strcmp(child1->info_char,"Exp")==0){
+        debug("Stmt -> Exp SEMI\n");
+        //TODO:检查Exp是否错误
+    }
+    else if(strcmp(child1->info_char,"RETURN")==0){
+        debug("Stmt -> Return Exp SEMI\n");
+        child2=child1->next;
+        //TODO:检查Exp是否错误
+        //TODO:检查返回值类型是否正确
+    }
+    else if(strcmp(child1->info_char,"IF")==0){
+        child2=child1->next->next;//Exp
+        child3=child2->next->next;//Stmt
+        child4=child3->next;//NULL or ELSE
+        if(child4!=NULL){
+            child4=child4->next;//Stmt;
+            debug("Stmt -> IF LP Exp RP Stmt ELSE Stmt\n");
+            //TODO:检查Exp错误
+        }
+        else{
+            debug("Stmt -> IF LP Exp RP Stmt\n");
+        }
+    }
+    else if(strcmp(child1->info_char,"WHILE")==0){
+        debug("Stmt -> WHILE LP Exp RP Stmt\n");
+        //TODO:检查Exp错误
+    }
+    else{
+        debug("should not reach here\n");
+        exit(1);
+    }
+    return;
+}
 
 void DefList_analyse(Node *node){
     Node *def=node->child;
@@ -240,41 +308,94 @@ void Def_analyse(Node *node){
     Node *specifier=node->child;
     Node *declist=specifier->next;
     debug("Def -> Specifier DecList SEMI\n");
-    Specifier_analyse(specifier);
-    DecList_analyse(declist);
+    Type type=Specifier_analyse(specifier);
+    DecList_analyse(declist,type);
     return;
 }
 
-void DecList_analyse(Node *node){
+void DecList_analyse(Node *node,Type type){
     Node *dec=node->child;
     Node *comma=dec->next;
     Node *declist=NULL;
     if(comma==NULL){
         debug("DecList -> Dec\n");
-        Dec_analyse(dec);
+        Dec_analyse(dec,type);
     }
     else{
         declist=comma->next;
         debug("DecList -> Dec COMMA DecList\n");
-        Dec_analyse(dec);
-        DecList_analyse(declist);
+        Dec_analyse(dec,type);
+        DecList_analyse(declist,type);
     }
     return;
 }
 
-void Dec_analyse(Node *node){
+void Dec_analyse(Node *node,Type type){
     Node *vardec=node->child;
     Node *assignop=vardec->next;
     Node *exp=NULL;
     if(assignop==NULL){
         debug("Dec -> VarDec\n");
+        FieldList field=VarDec_analyse(vardec,type);
+        if(query_symbol(field->name)!=NULL){
+            //TODO:报错
+        }
+        else{
+            insert_node(field->type,field->name);
+            free(field);
+        }
     }
     else{
         debug("Dec -> VarDec ASSIGNOP EXP\n");
         exp=assignop->next;
+        FieldList field=VarDec_analyse(vardec,type);
+        Type type=Exp_analyse(exp);
+        if(type!=field->type){
+            //TODO:报错
+            debug("should not reach here\n");
+            exit(1);
+        }
+        if(query_symbol(field->name)!=NULL){
+            //TODO:报错
+            debug("Error type %d at line %d: %s",3,node->lineno,error_msg[3]);
+        }
+        else{
+            insert_node(field->type,field->name);
+            free(field);
+        }
     }
     return;
 }
 
-void Exp_analyse(Node *node){return;}
-void Args_analyse(Node *node){return;}
+Type Exp_analyse(Node *node){
+    Node *child1=node->child;
+    if(child1->node_type==lexint){
+        return &type_int;
+    }
+    else if(child1->node_type==lexfloat){
+        return &type_float;
+    }
+    else if(child1->node_type==lexid){
+        Type type=query_symbol(child1->info_char);
+        if(type==NULL){
+            //TODO:报错
+        }
+        else{
+            return type;
+        }
+    }
+    return NULL;
+}
+
+void Args_analyse(Node *node){
+    Node *exp=node->child;
+    Node *args=NULL;
+    if(exp->next==NULL){
+        debug("Args -> Exp\n");
+    }
+    else{
+        debug("Args -> Exp COMMA Args\n");
+        args=exp->next->next;
+    }
+    return;
+}

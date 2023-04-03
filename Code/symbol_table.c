@@ -56,7 +56,11 @@ void print_table(){
         if(hashtable[i]!=NULL){
             sNode node=hashtable[i]->next;
             while(node!=NULL){
-                printf("{name:%s,type:%d}->",node->name,node->type->kind);
+                printf("{name:%s,type:%d",node->name,node->type->kind);
+                if(node->type->kind==FUNCTION_T){
+                    printf(",paramcnt:%d",node->type->u.function.paramscnt);
+                }
+                printf("}->");
                 node=node->next;
             }
         }

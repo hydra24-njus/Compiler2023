@@ -3,6 +3,6 @@ Code/lex.yy.c
 Code/syntax.tab.c
 Code/scanner
 Code/parser
-Code/syntax.output
 Code/syntax.tab.h
 Code/*.o
+Code/*.output
