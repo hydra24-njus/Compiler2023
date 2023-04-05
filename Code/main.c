@@ -5,6 +5,7 @@ extern int yylineno;
 extern int yyparse();
 extern void yyrestart(FILE*);
 int Lexerror=0,Synerror=0;
+extern int semantic_error;
 Node *root=NULL;
 int main(int argc,char** argv){
     if(argc<=1)return 1;
@@ -16,13 +17,14 @@ int main(int argc,char** argv){
     yyrestart(f);//将flex输入文件的指针设为f，并指向文件开头。
     yyparse();//对输入文件进行分析
     if(!(Lexerror||Synerror)){
-        debug("lexical and syntax pass\n");
+        debug("----------lexical and syntax pass----------\n");
         if(semantic(root)){
             debug("error in semantic.\n");
             return 1;//there must bu something error
         }
         //do something
         print_table();
+        debug("%d",semantic_error);
     }
     return 0;
 }

@@ -5,7 +5,7 @@
             "label": "build",
             "command": "make",
             "args": [
-                "CFLAGS=-std=c99 -g"
+                "CFLAGS=-std=c99 -g -D__DEBUG__"
             ],
             "options": {
                 "cwd": "${fileDirname}"
