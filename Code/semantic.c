@@ -1,10 +1,6 @@
 #include "semantic.h"
-#define __DEBUG__
-#ifdef __DEBUG__
-#define debug(format,...) printf(format,##__VA_ARGS__)
-#else
-#define debug(format,...)
-#endif
+#include "debug.h"
+
 
 static struct Type_ type_int={
     .kind=BASIC,

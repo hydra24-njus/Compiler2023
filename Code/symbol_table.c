@@ -1,5 +1,5 @@
 #include "symbol_table.h"
-
+#include "debug.h"
 static struct SymbolNode_* hashtable[TABLE_SIZE];
 static unsigned _depth;
 int hash(char *name){
@@ -24,7 +24,7 @@ void insert_node(Type type,char *name){
         exit(0);
     }
     int index=hash(name);
-    printf("index=%d\n",index);
+    debug("index=%d\n",index);
     struct SymbolNode_ *node=malloc(sizeof(struct SymbolNode_));
     node->name=name;
     node->next=NULL;
@@ -54,26 +54,26 @@ char *tpname[5]={"basic","array","structure","function"};
 char *basicname[3]={"int","float"};
 void print_table(){
     for(int i=0;i<TABLE_SIZE;i++){
-        printf("%d: ",i);
+        debug("%d: ",i);
         if(hashtable[i]!=NULL){
             sNode node=hashtable[i]->next;
             while(node!=NULL){
-                printf("{%s %s",tpname[node->type->kind],node->name);
+                debug("{%s %s",tpname[node->type->kind],node->name);
                 if(node->type->kind==FUNCTION_T){
                     FieldList tmp=node->type->u.function.paramlist;
-                    printf("(");
+                    debug("(");
                     while(tmp!=NULL){
-                        printf("%s %s",tpname[tmp->type->kind],tmp->name);
+                        debug("%s %s",tpname[tmp->type->kind],tmp->name);
                         tmp=tmp->tail;
-                        if(tmp!=NULL)printf(", ");
+                        if(tmp!=NULL)debug(", ");
                     }
-                    printf(")");
+                    debug(")");
                 }
-                printf("}->");
+                debug("}->");
                 node=node->next;
             }
         }
-        printf("\n");
+        debug("\n");
     }
 }
 
