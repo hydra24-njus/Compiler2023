@@ -19,7 +19,7 @@ enum { BASIC, ARRAY, STRUCTURE, FUNCTION_T } kind;
     struct { Type elem; int size; } array;
     // 结构体类型信息是一个链表
     FieldList structure;
-    struct { Type returntype;int paramscnt;FieldList paramlist;}function;
+    struct { Type returntype;int paramscnt;FieldList paramlist;int isdef;}function;
     }u;
 };
 
@@ -41,4 +41,5 @@ void symboltable_init();
 void insert_node(Type type,char *name);
 Type query_symbol(char *name);
 void print_table();
+int typecheck(Type A, Type B);
 #endif

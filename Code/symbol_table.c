@@ -50,15 +50,24 @@ Type query_symbol(char *name){
     }
     return NULL;
 }
+char *tpname[5]={"basic","array","structure","function"};
+char *basicname[3]={"int","float"};
 void print_table(){
     for(int i=0;i<TABLE_SIZE;i++){
         printf("%d: ",i);
         if(hashtable[i]!=NULL){
             sNode node=hashtable[i]->next;
             while(node!=NULL){
-                printf("{name:%s,type:%d",node->name,node->type->kind);
+                printf("{%s %s",tpname[node->type->kind],node->name);
                 if(node->type->kind==FUNCTION_T){
-                    printf(",paramcnt:%d",node->type->u.function.paramscnt);
+                    FieldList tmp=node->type->u.function.paramlist;
+                    printf("(");
+                    while(tmp!=NULL){
+                        printf("%s %s",tpname[tmp->type->kind],tmp->name);
+                        tmp=tmp->tail;
+                        if(tmp!=NULL)printf(", ");
+                    }
+                    printf(")");
                 }
                 printf("}->");
                 node=node->next;
@@ -66,4 +75,37 @@ void print_table(){
         }
         printf("\n");
     }
+}
+
+int typecheck(Type A, Type B){
+    //相等返回1，不相等返回0；
+    if(A->kind!=B->kind){
+        return 0;
+    }
+    if(A->kind==BASIC){
+        if(A->u.basic!=B->u.basic){
+            return 0;
+        }
+    }
+    if(A->kind==ARRAY){
+
+    }
+    if(A->kind==STRUCTURE){
+
+    }
+    if(A->kind==FUNCTION_T){
+        if(typecheck(A->u.function.returntype,B->u.function.returntype)==0)
+            return 0;
+        if(A->u.function.paramscnt!=B->u.function.paramscnt)
+            return 0;
+        FieldList tmpa=A->u.function.paramlist;
+        FieldList tmpb=B->u.function.paramlist;
+        while(tmpa!=NULL){
+            if(typecheck(tmpa->type,tmpb->type)==0)
+                return 0;
+            tmpa=tmpa->tail;
+            tmpb=tmpb->tail;
+        }
+    }
+    return 1;
 }

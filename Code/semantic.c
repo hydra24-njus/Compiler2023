@@ -60,12 +60,13 @@ void ExtDefList_analyse(Node *root){
     Node *child2=child1->next;
     if(child2!=NULL){
         debug("ExtDefList -> ExtDef ExtDefList\n");
+        ExtDef_analyse(child1);
         ExtDefList_analyse(child2);
     }
     else{
         debug("ExtDefList -> ExtDef ExtDefList(empty)\n");
+        ExtDef_analyse(child1);
     }
-    ExtDef_analyse(child1);
 }
 
 void ExtDef_analyse(Node *root){
@@ -84,14 +85,14 @@ void ExtDef_analyse(Node *root){
             debug("ExtDef -> Specifier FunDec CompSt\n");
             //TODO:进入新的作用域
             type=Specifier_analyse(child1);
-            FunDec_analyse(child2,type);
+            FunDec_analyse(child2,type,1);
             CompSt_analyse(child3);
         }
         else if(strcmp(child1->info_char,"Specifier")==0&&strcmp(child2->info_char,"FunDec")==0&&strcmp(child3->info_char,"SEMI")==0){
             debug("ExtDef -> Specifier FunDec SEMI\n");
             //TODO:进入新的作用域
             type=Specifier_analyse(child1);
-            FunDec_analyse(child2,type);
+            FunDec_analyse(child2,type,0);
         }
         else{
             debug("error in ExtDef_analyse\n");
@@ -100,6 +101,8 @@ void ExtDef_analyse(Node *root){
     }
     else if(child1&&child2){
         debug("ExtDef -> Specifier SEMI\n");
+        type=Specifier_analyse(child1);
+        //TODO:添加进符号表
     }
     else{
         debug("error in ExtDef_analyse\n");
@@ -128,7 +131,15 @@ void ExtDecList_analyse(Node *node,Type type){
         ExtDecList_analyse(child3,type);
     }
     else if(child1){
-        debug("VarDec");
+        debug("ExtDecList -> VarDec\n");
+        FieldList field=VarDec_analyse(child1,type);
+        if(query_symbol(field->name)!=NULL){
+            //TODO:报错
+        }
+        else{
+            insert_node(field->type,field->name);
+            free(field);
+        }
     }
     else{
         debug("error in ExtDecList_analyse\n");
@@ -148,14 +159,14 @@ Type Specifier_analyse(Node *node){
             type=&type_float;
         }
         else{
-            debug("should not reach here\n");
+            debug("should not reach here 1\n");
             exit(1);
         }
     }
     else{
         type=malloc(sizeof(struct Type_));
         type->kind=STRUCTURE;
-        //TODO: 结构体
+        //TODO: 结构体(可能有匿名)
     }
     return type;
 }
@@ -183,7 +194,9 @@ FieldList VarDec_analyse(Node *node,Type type){
     return NULL;
 }
 
-void FunDec_analyse(Node *node,Type type){
+void FunDec_analyse(Node *node,Type type,int def){
+    //def=0:只声明
+    //def=1:定义
     Node *id=node->child;
     Node *varlist=id->next->next;
 
@@ -191,42 +204,112 @@ void FunDec_analyse(Node *node,Type type){
     functype->kind=FUNCTION_T;
     functype->u.function.returntype=type;
 
+    //TODO:判断是否定义和声明
+
     if(strcmp(varlist->info_char,"VarList")==0){
         debug("FunDec -> ID LP VarList RP\n");
         //TODO:创建一个field
-    }
-    else{
-        debug("FunDec -> ID LP RP\n");
-        functype->u.function.paramscnt=0;
-        functype->u.function.paramlist=NULL;
+        FieldList field=VarList_analyse(varlist,NULL);
+        int cnt=0;
+        FieldList tmp=field;
+        while(tmp!=NULL){
+            cnt++;
+            tmp=tmp->tail;
+        }
+        functype->u.function.paramscnt=cnt;
+        functype->u.function.paramlist=field;
+        functype->u.function.isdef=def;
         Type qtype=query_symbol(id->info_char);
         if(qtype==NULL){
             //未定义 or 声明的函数
             insert_node(functype,id->info_char);
         }
         else{
-            
+            if(def&&qtype->u.function.isdef){
+                printf("Error type %d at line %d: %s\n",4,node->lineno,error_msg[4]);
+            }
+            else if(typecheck(functype,qtype)==0){
+                printf("Error type %d at line %d: %s\n",19,node->lineno,error_msg[19]);
+            }
+        }
+    }
+    else{
+        debug("FunDec -> ID LP RP\n");
+        functype->u.function.paramscnt=0;
+        functype->u.function.paramlist=NULL;
+        functype->u.function.isdef=def;
+        Type qtype=query_symbol(id->info_char);
+        if(qtype==NULL){
+            //未定义 or 声明的函数
+            insert_node(functype,id->info_char);
+        }
+        else{
+            if(def&&qtype->u.function.isdef){
+                printf("Error type %d at line %d: %s\n",4,node->lineno,error_msg[4]);
+            }
+            else if(typecheck(functype,qtype)==0){
+                printf("Error type %d at line %d: %s\n",19,node->lineno,error_msg[19]);
+            }
         }
     }
     return;
 }
 
-void VarList_analyse(Node *node){return;}
+FieldList VarList_analyse(Node *node,FieldList head){
+    Node *paramdec=node->child;
+    Node *varlist=NULL;
+    if(paramdec->next!=NULL){
+        varlist=paramdec->next->next;
+    }
+    if(varlist==NULL){
+        debug("VarList -> ParamDec\n");
+        FieldList field=ParamDec_analyse(paramdec);
+        if(head!=NULL){
+            head->tail=field;
+        }
+        return field;
+    }
+    else{
+        debug("VarList -> ParamDec COMMA VarList\n");
+        FieldList field=ParamDec_analyse(paramdec);
+        if(head!=NULL){
+            head->tail=field;
+        }
+        VarList_analyse(varlist,field);
+        return field;
+    }
+    return NULL;
+}
 
-void ParamDec_analyse(Node *node){return;}
+FieldList ParamDec_analyse(Node *node){
+    debug("ParamDec -> Specifier VarDec\n");
+    Type type=Specifier_analyse(node->child);
+    FieldList field=VarDec_analyse(node->child->next,type);
+    return field;
+}
 
 void CompSt_analyse(Node *node){
     Node *lc=node->child;
     Node *deflist=lc->next;
     Node *child=deflist->next;
-    if(strcmp(child->info_char,"StmtList")==0){
-        debug("CompSt -> LC DefList StmtList RC\n");
-        DefList_analyse(deflist);
-        StmtList_analyse(child);
+    if(child==NULL){
+        debug("Compst -> LC DefList(empty) StmtList(empty) RC\n");
+        // Do nothing
     }
-    else{
-        debug("CompSt -> LC DefList StmtList(empty) RC\n");
-        DefList_analyse(deflist);
+    else if(strcmp(deflist->info_char,"DefList")==0){
+        if(child!=NULL&&strcmp(child->info_char,"StmtList")==0){
+            debug("Compst -> LC DefList StmtList RC\n");
+            DefList_analyse(deflist);
+            StmtList_analyse(child);
+        }
+        else{
+            debug("Compst -> LC DefList StmtList(empty) RC\n");
+            DefList_analyse(deflist);
+        }
+    }
+    else if(strcmp(deflist->info_char,"StmtList")==0){
+        debug("CompSt -> LC DefList(empty) StmtList RC\n");
+        StmtList_analyse(deflist);
     }
     return;
 }
@@ -258,11 +341,13 @@ void Stmt_analyse(Node *node){
     else if(strcmp(child1->info_char,"Exp")==0){
         debug("Stmt -> Exp SEMI\n");
         //TODO:检查Exp是否错误
+        Exp_analyse(child1);
     }
     else if(strcmp(child1->info_char,"RETURN")==0){
-        debug("Stmt -> Return Exp SEMI\n");
+        debug("Stmt -> RETURN Exp SEMI\n");
         child2=child1->next;
         //TODO:检查Exp是否错误
+        Type etype=Exp_analyse(child2);
         //TODO:检查返回值类型是否正确
     }
     else if(strcmp(child1->info_char,"IF")==0){
@@ -283,7 +368,7 @@ void Stmt_analyse(Node *node){
         //TODO:检查Exp错误
     }
     else{
-        debug("should not reach here\n");
+        debug("should not reach here 2\n");
         exit(1);
     }
     return;
@@ -352,7 +437,7 @@ void Dec_analyse(Node *node,Type type){
         Type type=Exp_analyse(exp);
         if(type!=field->type){
             //TODO:报错
-            debug("should not reach here\n");
+            debug("should not reach here 3\n");
             exit(1);
         }
         if(query_symbol(field->name)!=NULL){
@@ -370,12 +455,15 @@ void Dec_analyse(Node *node,Type type){
 Type Exp_analyse(Node *node){
     Node *child1=node->child;
     if(child1->node_type==lexint){
+        debug("Exp -> INT\n");
         return &type_int;
     }
     else if(child1->node_type==lexfloat){
+        debug("Exp -> FLOAT\n");
         return &type_float;
     }
-    else if(child1->node_type==lexid){
+    else if(child1->node_type==lexid&&child1->next==NULL){
+        debug("Exp -> ID\n");
         Type type=query_symbol(child1->info_char);
         if(type==NULL){
             //TODO:报错
@@ -384,18 +472,108 @@ Type Exp_analyse(Node *node){
             return type;
         }
     }
+    else if(strcmp(child1->info_char,"MINUS")==0){
+        debug("Exp -> MINUS Exp\n");
+        return Exp_analyse(child1->next);
+    }
+    else if(strcmp(child1->info_char,"NOT")==0){
+        debug("Exp -> NOT Exp\n");
+        return Exp_analyse(child1->next);
+    }
+    else if(strcmp(child1->info_char,"Exp")==0){
+        if(strcmp(child1->next->next->info_char,"Exp")==0&&child1->next->next->next==NULL){
+            debug("Exp -> Exp OP Exp\n");
+            Type type1=Exp_analyse(child1);
+            Type type2=Exp_analyse(child1->next->next);
+            if(typecheck(type1,type2)){
+                return type1;
+            }
+            else{
+                //报错
+            }
+        }
+        if(child1->next->next->node_type==lexid){
+            debug("Exp -> Exp DOT ID\n");
+            Type type1=Exp_analyse(child1);
+            //TODO:找到ID的类型并返回
+        }
+        if(strcmp(child1->next->next->info_char,"Exp")==0){
+            debug("Exp -> Exp LB Exp RB\n");
+            Type type1=Exp_analyse(child1);
+            Type type2=Exp_analyse(child1->next->next);
+            if(typecheck(type2,&type_int)){
+                return type1->u.array.elem;
+            }
+            else{
+                //报错
+            }
+        }
+    }
+    else if(strcmp(child1->info_char,"LP")==0){
+        debug("Exp -> LP Exp RP\n");
+        return Exp_analyse(child1->next);
+    }
+    else if(child1->node_type==lexid&&child1->next!=NULL){
+        if(strcmp(child1->next->next->info_char,"RP")){
+            debug("Exp -> ID LP RP\n");
+            //TODO:函数调用
+            Type type=query_symbol(child1->info_char);
+            if(type->u.function.paramscnt==0){
+                return type->u.function.returntype;
+            }
+            else{
+                //TODO:函数调用的参数数量不符
+                printf("Error %d at line %d: %s\n",9,node->lineno,error_msg[9]);
+            }
+        }
+        else if(strcmp(child1->next->next->info_char,"Args")){
+            debug("Exp -> ID LP Args RP\n");
+            //TODO:函数调用
+            Type type=query_symbol(child1->info_char);
+            FieldList head=type->u.function.paramlist;
+            if(Args_analyse(child1->next->next,head)==0){
+                return type->u.function.returntype;
+            }
+            else{
+                //TODO:函数调用的参数数量/类型不符
+                printf("Error %d at line %d: %s\n",9,node->lineno,error_msg[9]);
+            }
+        }
+    }
+    else{
+        debug("should not reach here 4\n");
+        exit(1);
+    }
     return NULL;
 }
 
-void Args_analyse(Node *node){
+int  Args_analyse(Node *node,FieldList field){
     Node *exp=node->child;
     Node *args=NULL;
     if(exp->next==NULL){
         debug("Args -> Exp\n");
+        if(field->tail!=NULL){
+            //参数数量不符
+            return 1;
+        }
+        Type type=Exp_analyse(exp);
+        if(field&&typecheck(type,field->type)){
+            return 0;
+        }
+        else{
+            return 1;
+        }
     }
     else{
         debug("Args -> Exp COMMA Args\n");
         args=exp->next->next;
+        Type type=Exp_analyse(exp);
+        if(typecheck(type,field->type)&&field->tail!=NULL){
+            return Args_analyse(args,field->tail);
+        }
+        else{
+            return 1;
+        }
     }
-    return;
+    return 0;
 }
