@@ -161,6 +161,7 @@ void ExtDecList_analyse(Node *node,Type type){
         FieldList field=VarDec_analyse(node->child,type);
         if(query_symbol(field->name)!=NULL){
             //TODO:报错
+	    error_output(3,node->lineno,field->name);
         }
         else{
             insert_node(field->type,field->name);
@@ -173,6 +174,7 @@ void ExtDecList_analyse(Node *node,Type type){
         FieldList field=VarDec_analyse(node->child,type);
         if(query_symbol(field->name)!=NULL){
             //TODO:报错
+	    error_output(3,node->lineno,field->name);
         }
         else{
             insert_node(field->type,field->name);

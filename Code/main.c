@@ -16,15 +16,16 @@ int main(int argc,char** argv){
     }
     yyrestart(f);//将flex输入文件的指针设为f，并指向文件开头。
     yyparse();//对输入文件进行分析
-    if(!(Lexerror||Synerror)){
-        debug("----------lexical and syntax pass----------\n");
-        if(semantic(root)){
-            debug("error in semantic.\n");
-            return 1;//there must bu something error
-        }
-        //do something
-        print_table();
-        debug("%d",semantic_error);
+    debug("----------lexical and syntax pass----------\n");
+    if(Lexerror||Synerror){
+        return 0;//有词法 or 语法错误，直接退出
     }
+    if(semantic(root)){
+        debug("error in semantic.\n");
+        return 1;//there must be something error
+    }
+    //do something
+    print_table();
+    debug("---------------semantic pass---------------\n");
     return 0;
 }
