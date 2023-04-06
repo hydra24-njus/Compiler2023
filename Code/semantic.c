@@ -202,18 +202,50 @@ Type Specifier_analyse(Node *node){
             exit(1);
         }
     }
+    else if(gencheck(node,1,"StructSpecifier")){
+        debug("Specifier -> StructSpecifier\n");
+        //TODO: 结构体(可能有匿名)
+        type=StructSpecifier_analyse(node->child);
+    }
     else{
         debug("Error int Specifier_analyse\n");
-        //TODO: 结构体(可能有匿名)
     }
     return type;
 }
 
-void StructSpecifier_analyse(Node *node){return;}
+Type StructSpecifier_analyse(Node *node){
+    //should return Type
+    if(gencheck(node,4,"STRUCT","LC","DefList","RC")){
+        debug("StructSpecifier -> STRUCT OptTag(empty) LC DefList RC\n");
+        //匿名结构体
+        FieldList field=DefList_struct_analyse(node->child->next->next);
+    }
+    else if(gencheck(node,5,"STRUCT","OptTag","LC","DefList","RC")){
+        debug("StructSpecifier -> STRUCT OptTag LC DefList RC\n");
+        char *optag=node->child->next->child->info_char;
+        FieldList field=DefList_strust_analyse(node->child->next->next->next);
+    }
+    else if(gencheck(node,2,"STRUCT","Tag")){
+        debug("StructSpecifier -> Struct Tag\n");
+        char *tag=node->child->next->child->info_char;
+        Type type=query_symbol(tag);
+        if(type!=NULL){
+            return type;
+        }
+        else{
+            //TODO:报错
+        }
+    }
+    else{
+        debug("error in StructSpecifier_analyse\n");
+        exit(1);
+    }
+    return NULL;
+}
 
-void OptTag_analyse(Node *node){return;}
-
-void Tag_analyse(Node *node){return;}
+FieldList DefList_struct_analyse(Node *node){
+    return NULL;
+}
 
 FieldList VarDec_analyse(Node *node,Type type){
     if(gencheck(node,1,"ID")){
