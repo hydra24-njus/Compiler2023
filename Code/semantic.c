@@ -223,7 +223,7 @@ Type StructSpecifier_analyse(Node *node){
     else if(gencheck(node,5,"STRUCT","OptTag","LC","DefList","RC")){
         debug("StructSpecifier -> STRUCT OptTag LC DefList RC\n");
         char *optag=node->child->next->child->info_char;
-        FieldList field=DefList_strust_analyse(node->child->next->next->next);
+        FieldList field=DefList_struct_analyse(node->child->next->next->next);
     }
     else if(gencheck(node,2,"STRUCT","Tag")){
         debug("StructSpecifier -> Struct Tag\n");

@@ -26,6 +26,6 @@ void Dec_analyse(Node *node,Type type);
 Type Exp_analyse(Node *node);
 int  Args_analyse(Node *node,FieldList field);
 
-FieldList DefList_struct_analyse(Node *node)
+FieldList DefList_struct_analyse(Node *node);
 
 #endif

@@ -20,6 +20,7 @@ int main(int argc,char** argv){
     if(Lexerror||Synerror){
         return 0;//有词法 or 语法错误，直接退出
     }
+    
     if(semantic(root)){
         debug("error in semantic.\n");
         return 1;//there must be something error
@@ -27,5 +28,6 @@ int main(int argc,char** argv){
     //do something
     print_table();
     debug("---------------semantic pass---------------\n");
+    
     return 0;
 }

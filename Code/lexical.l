@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include "tree.h"
 int yycolumn=1;
+extern unsigned check(int lineno);
 extern int Lexerror;
 #define YY_USER_ACTION \
   yylloc.first_line = yylloc.last_line = yylineno; \
@@ -73,7 +74,7 @@ ID          {letter}({digit}|{letter})*
              if(!c2){
                //TODO:未匹配到 "*/"
                Lexerror=1;
-               fprintf(stdout,"Error type A at line %d: unterminated comment\n", lineno_now);
+               if(check(yylineno))fprintf(stdout,"Error type A at line %d: unterminated comment\n", lineno_now);
              }
              else yycolumn++;
              //貌似没有必要维护 yycolumn
@@ -103,10 +104,10 @@ ID          {letter}({digit}|{letter})*
 {ELSE}      {yylval.type_node=creat_node(lexother,0,0,0,"ELSE");return ELSE;}
 {WHILE}     {yylval.type_node=creat_node(lexother,0,0,0,"WHILE");return WHILE;}
 {INT}       {yylval.type_node=creat_node(lexint,0,strtol(yytext,NULL,0),0,0);return INT;}//a good function strtol(const char* nptr,char** endptr,int base);endptr为NULL则转换完整字符串、base为0则根据形式决定进制
-{INT_E}     {yylval.type_node=creat_node(lexint,0,0,0,0);Lexerror=1;fprintf(stdout,"Error type A at Line %d: Illegal INT: \'%s\'\n",yylineno, yytext);return INT;}
+{INT_E}     {yylval.type_node=creat_node(lexint,0,0,0,0);Lexerror=1;if(check(yylineno))fprintf(stdout,"Error type A at Line %d: Illegal INT: \'%s\'\n",yylineno, yytext);return INT;}
 {FLOAT}     {yylval.type_node=creat_node(lexfloat,0,0,atof(yytext),0);return FLOAT;}
-{FLOAT_E}   {yylval.type_node=creat_node(lexfloat,0,0,0,0);Lexerror=1;fprintf(stdout,"Error type A at Line %d: Illegal FLOAT: \'%s\'\n",yylineno, yytext);return FLOAT;}
+{FLOAT_E}   {yylval.type_node=creat_node(lexfloat,0,0,0,0);Lexerror=1;if(check(yylineno))fprintf(stdout,"Error type A at Line %d: Illegal FLOAT: \'%s\'\n",yylineno, yytext);return FLOAT;}
 {ID}        {yylval.type_node=creat_node(lexid,0,0,0,yytext);return ID;}
-.           {Lexerror=1;fprintf(stdout,"Error type A at Line %d: Mysterious characters \'%s\'\n",yylineno, yytext);}
+.           {Lexerror=1;if(check(yylineno))fprintf(stdout,"Error type A at Line %d: Mysterious characters \'%s\'\n",yylineno, yytext);}
 
 %%
