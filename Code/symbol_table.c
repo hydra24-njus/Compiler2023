@@ -1,8 +1,12 @@
 #include "symbol_table.h"
 #include "debug.h"
-static struct SymbolNode_* hashtable[TABLE_SIZE];
-static struct SymbolNode_* structable[STRUCT_SIZE];
-static unsigned _depth;
+
+struct SymbolNode_ *hashtable[TABLE_SIZE];
+struct SymbolNode_ *structable[STRUCT_SIZE];
+struct FunctionList_ *functable;
+struct ScopeList_ *scopelist;
+unsigned _depth;
+
 int hash(char *name,int size){
     unsigned int val=0,i;
     for(;*name;++name){
@@ -12,6 +16,7 @@ int hash(char *name,int size){
     return val;
 }
 
+//初始化用
 void symboltable_init(){
     static struct SymbolNode_ tab[TABLE_SIZE];
     for(int i=0;i<TABLE_SIZE;i++){
@@ -21,64 +26,91 @@ void symboltable_init(){
     for(int i=0;i<STRUCT_SIZE;i++){
         structable[i]=&(structab[i]);
     }
+    static struct FunctionList_ functab;
+    functable=&functab;
+    static struct ScopeList_ slist;
+    scopelist=&slist;
 }
 
-void insert_node(Type type,char *name){
-    if(query_symbol(name)){
-        printf("error in insert_node();\n");
-        exit(0);
-    }
+//全局符号表
+void insert_node(Type type,char *name,int deep,ScopeList scope){
     int index=hash(name,TABLE_SIZE);
     struct SymbolNode_ *node=malloc(sizeof(struct SymbolNode_));
     node->name=name;
     node->next=NULL;
     node->type=type;
-    if(hashtable[index]->next==NULL){
-        hashtable[index]->next=node;
-    }
-    else{
-        node->next=hashtable[index]->next;
-        hashtable[index]->next=node;
+    node->depth=deep;
+    node->next=hashtable[index]->next;
+    hashtable[index]->next=node;
+    if(scope!=NULL){
+        node->tail=scope->tail;
+        scope->tail=node;
     }
 }
-Type query_symbol(char *name){
+
+Type query_symbol(char *name,int type,int deep){
+    //type=0:只查当前层 是否重定义
+    //type=1:查本层及更浅的层
     int index=hash(name,TABLE_SIZE);
     sNode ret=NULL;
-    for(sNode i=hashtable[index]->next;i;i=i->next){
-        if(strcmp(name,i->name)==0){
-            ret=i;//最深层的
+    if(type==0){
+        for(sNode i=hashtable[index]->next;i;i=i->next){
+            if(strcmp(name,i->name)==0){
+                if(i->depth==deep){
+                    ret=i;
+                    break;
+                }
+            }
+        }
+        if(ret){
+            return ret->type;
         }
     }
-    if(ret){
-        return ret->type;
+    else if(type==1){
+        for(sNode i=hashtable[index]->next;i;i=i->next){
+            if(strcmp(name,i->name)==0){
+                if(i->depth<=deep){
+                    ret=i;
+                    break;
+                }
+            }
+        }
+        if(ret){
+            return ret->type;
+        }
     }
     return NULL;
 }
 
-void insert_node_struct(Type type,char *name){
-    if(query_symbol_struct(name)){
-        printf("error in insert_node_struct();\n");
-        exit(0);
+void delete_node(struct SymbolNode_ *node){
+    int index=hash(node->name,TABLE_SIZE);
+    struct SymbolNode_ *tmp=hashtable[index];
+    while(tmp->next!=node){
+        tmp=tmp->next;
     }
+    tmp->next=node->next;
+    free(node);
+}
+
+//结构体内部作用域的符号表
+void insert_node_struct(Type type,char *name){
     int index=hash(name,STRUCT_SIZE);
     struct SymbolNode_ *node=malloc(sizeof(struct SymbolNode_));
     node->name=name;
     node->next=NULL;
     node->type=type;
-    if(structable[index]->next==NULL){
-        structable[index]->next=node;
-    }
-    else{
-        node->next=structable[index]->next;
-        structable[index]->next=node;
-    }
+    node->next=structable[index]->next;
+    structable[index]->next=node;
+
 }
+
 Type query_symbol_struct(char *name){
     int index=hash(name,STRUCT_SIZE);
     sNode ret=NULL;
     for(sNode i=structable[index]->next;i;i=i->next){
         if(strcmp(name,i->name)==0){
-            ret=i;//最深层的
+            ret=i;
+            break;
         }
     }
     if(ret){
@@ -86,6 +118,25 @@ Type query_symbol_struct(char *name){
     }
     return NULL;
 }
+
+void delete_struct_node(char *name){
+    int index=hash(name,STRUCT_SIZE);
+    sNode ret=NULL;
+    sNode prev=structable[index];
+    for(sNode i=structable[index]->next;i;i=i->next){
+        if(strcmp(name,i->name)==0){
+            ret=i;//最深层的
+            break;
+        }
+        prev=i;
+    }
+    if(ret){
+        prev->next=ret->next;
+        free(ret);
+    }
+    return ;
+}
+
 void delete_struct_table(){
     for(int i=0;i<STRUCT_SIZE;i++){
         if(structable[i]->next==NULL)
@@ -100,8 +151,68 @@ void delete_struct_table(){
     }
 }
 
+//函数定义的全局链表
+void insert_function(int lineno,char *name){
+    struct FunctionList_ *node=malloc(sizeof(struct FunctionList_));
+    node->lineno=lineno;
+    node->name=name;
+    node->next=functable->next;
+    functable->next=node;
+    return;
+}
+
+void delete_function(char *name){
+    struct FunctionList_ *prev=functable;
+    struct FunctionList_ *ret=functable->next;
+    while(ret!=NULL){
+        if(strcmp(ret->name,name)==0){
+            break;
+        }
+        prev=ret;
+        ret=ret->next;
+    }
+    prev->next=ret->next;
+    ret->next=NULL;
+    free(ret);
+}
+
+void delete_functable(){
+    struct FunctionList_ *tmp=functable->next;
+    while(tmp!=NULL){
+        functable->next=tmp->next;
+        free(tmp);
+        tmp=functable->next;
+    }
+    functable->next=NULL;
+}
+
+//作用域控制
+struct ScopeList_ *enter_new_scope(){
+    struct ScopeList_ *ret=malloc(sizeof(struct ScopeList_));
+    ret->next=scopelist->next;
+    scopelist->next=ret;
+    return ret;
+}
+
+struct ScopeList_ *exit_cur_scope(){
+    struct ScopeList_ *ret=scopelist->next;
+    struct SymbolNode_ *tmp=ret->tail;
+    struct SymbolNode_ *out=ret->tail;
+    while(ret->tail!=NULL){
+        tmp=ret->tail;
+        ret->tail=tmp->tail;
+        delete_node(tmp);
+    }
+    scopelist->next=ret->next;
+    free(ret);
+    return scopelist->next;
+}
+
+
+//一些调试信息
 char *tpname[5]={"basic","array","structure","function"};
 char *basicname[3]={"int","float"};
+
 void print_table(){
     for(int i=0;i<TABLE_SIZE;i++){
         debug("%d: ",i);
@@ -128,9 +239,11 @@ void print_table(){
     }
 }
 
+
 int typecheck(Type A, Type B){
     //相等返回1，不相等返回0；
-    if(A==NULL||B==NULL)return 0;
+    if(A==NULL&&B==NULL)return 1;
+    else if(A==NULL||B==NULL)return 0;
     else if(A->kind!=B->kind){
         return 0;
     }

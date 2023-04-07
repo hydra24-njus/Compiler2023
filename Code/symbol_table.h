@@ -7,6 +7,7 @@
 typedef struct Type_* Type;
 typedef struct FieldList_* FieldList;
 typedef struct SymbolNode_* sNode;
+typedef struct ScopeList_* ScopeList;
 
 #define TABLE_SIZE (0x3fff)
 #define STRUCT_SIZE (0x0fff)
@@ -34,17 +35,36 @@ struct SymbolNode_{
     char *name;
     Type type;
     struct SymbolNode_ *next;
+    struct SymbolNode_ *tail;
     unsigned depth;
+};
+
+struct FunctionList_{
+    int lineno;
+    char *name;
+    struct FunctionList_ *next;
+};
+
+struct ScopeList_{
+    struct ScopeList_  *next;
+    struct SymbolNode_ *tail;
 };
 
 void symboltable_init();
 
-void insert_node(Type type,char *name);
-Type query_symbol(char *name);
+void insert_node(Type type,char *name,int deep,ScopeList scope);
+Type query_symbol(char *name,int type,int deep);
 
 void insert_node_struct(Type type,char *name);
 Type query_symbol_struct(char *name);
 void delete_struct_table();
+
+void insert_function(int lineno,char *name);
+void delete_function(char *name);
+void delete_functable();
+
+struct ScopeList_ *enter_new_scope();
+struct ScopeList_ *exit_cur_scope();
 
 void print_table();
 int typecheck(Type A, Type B);
