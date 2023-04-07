@@ -14,8 +14,8 @@ unsigned check(int lineno){
     _error[cnt++]=lineno;
     return 1;
 }
-#define YYDEBUG 1
-int yydebug=1;
+//#define YYDEBUG 1
+//int yydebug=1;
 %}
 
 %union{

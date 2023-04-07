@@ -33,13 +33,14 @@ void symboltable_init(){
 }
 
 //全局符号表
-void insert_node(Type type,char *name,int deep,ScopeList scope){
+void insert_node(Type type,char *name,int deep,int kind,ScopeList scope){
     int index=hash(name,TABLE_SIZE);
     struct SymbolNode_ *node=malloc(sizeof(struct SymbolNode_));
     node->name=name;
     node->next=NULL;
     node->type=type;
     node->depth=deep;
+    node->kind=kind;
     node->next=hashtable[index]->next;
     hashtable[index]->next=node;
     if(scope!=NULL){
@@ -57,6 +58,10 @@ Type query_symbol(char *name,int type,int deep){
         for(sNode i=hashtable[index]->next;i;i=i->next){
             if(strcmp(name,i->name)==0){
                 if(i->depth==deep){
+                    ret=i;
+                    break;
+                }
+                else if(i->kind==STRUCT){
                     ret=i;
                     break;
                 }

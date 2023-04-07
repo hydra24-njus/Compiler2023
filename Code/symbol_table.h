@@ -52,7 +52,7 @@ struct ScopeList_{
 
 void symboltable_init();
 
-void insert_node(Type type,char *name,int deep,ScopeList scope);
+void insert_node(Type type,char *name,int deep,int kind,ScopeList scope);
 Type query_symbol(char *name,int type,int deep);
 
 void insert_node_struct(Type type,char *name);

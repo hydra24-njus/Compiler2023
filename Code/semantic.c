@@ -184,14 +184,14 @@ void ExtDef_analyse(Node *root){
 
 void ExtDecList_analyse(Node *node,Type type){
     if(gencheck(node,3,"VarDec","COMMA","ExtDecList")){
-        debug("ExtDecList -> VarDec COMMA \n");
+        debug("ExtDecList -> VarDec COMMA ExtDecList\n");
         FieldList field=VarDec_analyse(node->child,type);
-        if(query_symbol(field->name,0,_depth)!=NULL){
+        if(query_symbol(field->name,0,0)!=NULL){
             //TODO:报错
 	        error_output(3,node->lineno,field->name);
         }
         else{
-            insert_node(field->type,field->name,_depth,NULL);
+            insert_node(field->type,field->name,0,VARIABLE,NULL);
             free(field);
         }
         ExtDecList_analyse(node->child->next->next,type);
@@ -199,12 +199,12 @@ void ExtDecList_analyse(Node *node,Type type){
     else if(gencheck(node,1,"VarDec")){
         debug("ExtDecList -> VarDec\n");
         FieldList field=VarDec_analyse(node->child,type);
-        if(query_symbol(field->name,0,_depth)!=NULL){
+        if(query_symbol(field->name,0,0)!=NULL){
             //TODO:报错
-	    error_output(3,node->lineno,field->name);
+	        error_output(3,node->lineno,field->name);
         }
         else{
-            insert_node(field->type,field->name,_depth,NULL);
+            insert_node(field->type,field->name,0,VARIABLE,NULL);
             free(field);
         }
     }
@@ -255,7 +255,7 @@ Type StructSpecifier_analyse(Node *node){
         char noname[4];
         static int noname_cnt=0;
         sprintf(noname,"%d",noname_cnt++);
-        insert_node(type,noname,0,NULL);
+        insert_node(type,noname,0,STRUCT,NULL);
         return type;
     }
     else if(gencheck(node,5,"STRUCT","OptTag","LC","DefList","RC")){
@@ -273,13 +273,13 @@ Type StructSpecifier_analyse(Node *node){
             delete_struct_table(field->name);
             field=field->tail;
         }
-        insert_node(type,optag,0,NULL);
+        insert_node(type,optag,0,STRUCT,NULL);
         return type;
     }
     else if(gencheck(node,2,"STRUCT","Tag")){
         debug("StructSpecifier -> Struct Tag\n");
         char *tag=node->child->next->child->info_char;
-        Type type=query_symbol(tag,1,_depth);
+        Type type=query_symbol(tag,1,0);
         if(type!=NULL){
             return type;
         }
@@ -302,7 +302,11 @@ FieldList DefList_struct_analyse(Node *node){
     else if(gencheck(node,2,"Def","DefList")){
         debug("DefList -> Def DefList (in struct)\n");
         FieldList head=Def_struct_analyse(node->child);
-        head->tail=DefList_struct_analyse(node->child->next);
+        FieldList tmp=head;
+        while(tmp->tail!=NULL){
+            tmp=tmp->tail;
+        }
+        tmp->tail=DefList_struct_analyse(node->child->next);
         return head;
     }
     else{
@@ -419,8 +423,8 @@ void FunDec_analyse(Node *node,Type type,int def,ScopeList scope){
         FieldList tmp=field;
         while(tmp!=NULL){
             cnt++;
-            if(query_symbol(tmp->name,0,0)==NULL){
-                insert_node(tmp->type,tmp->name,0,scope);
+            if(query_symbol(tmp->name,0,_depth)==NULL){
+                insert_node(tmp->type,tmp->name,_depth,FUNCTION,scope);
             }
             else{
                 error_output(3,node->child->next->next->lineno,tmp->name);
@@ -433,7 +437,7 @@ void FunDec_analyse(Node *node,Type type,int def,ScopeList scope){
         Type qtype=query_symbol(node->child->info_char,1,0);
         if(qtype==NULL){
             //未定义 or 声明的函数
-            insert_node(functype,node->child->info_char,0,NULL);
+            insert_node(functype,node->child->info_char,0,FUNCTION,NULL);
             if(def==0){
                 //插入到未声明的链表中
                 insert_function(node->child->lineno,node->child->info_char);
@@ -460,7 +464,7 @@ void FunDec_analyse(Node *node,Type type,int def,ScopeList scope){
         Type qtype=query_symbol(node->child->info_char,1,0);
         if(qtype==NULL){
             //未定义 or 声明的函数
-            insert_node(functype,node->child->info_char,0,NULL);
+            insert_node(functype,node->child->info_char,0,VARIABLE,NULL);
             if(def==0){
                 //插入到未声明的链表中
                 insert_function(node->child->lineno,node->child->info_char);
@@ -587,7 +591,7 @@ void Stmt_analyse(Node *node,Type type,ScopeList scope){
         debug("Stmt -> IF LP Exp RP Stmt\n");
         Type etype=Exp_analyse(node->child->next->next);
         if(!typecheck(etype,&type_int)){
-            error_output(0,node->lineno,"");
+            //error_output(0,node->lineno,"");
         }
         Stmt_analyse(node->child->next->next->next->next,type,scope);
     }
@@ -595,7 +599,7 @@ void Stmt_analyse(Node *node,Type type,ScopeList scope){
         debug("Stmt -> IF LP Exp RP Stmt ELSE Stmt\n");
         Type etype=Exp_analyse(node->child->next->next);
         if(!typecheck(etype,&type_int)){
-            error_output(0,node->lineno,"");
+            //error_output(0,node->lineno,"");
 
         }
         Stmt_analyse(node->child->next->next->next->next,type,scope);
@@ -605,8 +609,7 @@ void Stmt_analyse(Node *node,Type type,ScopeList scope){
         debug("Stmt -> WHILE LP Exp RP Stmt\n");
         Type etype=Exp_analyse(node->child->next->next);
         if(!typecheck(etype,&type_int)){
-            error_output(0,node->lineno,"");
-
+            //error_output(0,node->lineno,"");
         }
         Stmt_analyse(node->child->next->next->next->next,type,scope);
     }
@@ -668,7 +671,7 @@ void Dec_analyse(Node *node,Type type,ScopeList scope){
             error_output(3,node->lineno,field->name);
         }
         else{
-            insert_node(field->type,field->name,_depth,scope);
+            insert_node(field->type,field->name,_depth,VARIABLE,scope);
             free(field);
         }
     }
@@ -684,7 +687,7 @@ void Dec_analyse(Node *node,Type type,ScopeList scope){
             error_output(3,node->child->lineno,field->name);
         }
         else{
-            insert_node(field->type,field->name,_depth,scope);
+            insert_node(field->type,field->name,_depth,VARIABLE,scope);
             free(field);
         }
     }
@@ -740,7 +743,7 @@ Type Exp_analyse(Node *node){
             error_output(6,node->child->next->lineno,NULL);
         }
         if(typecheck(type1,type2)){
-            return &type_int;
+            return type1;
         }
         else{
             error_output(5,node->child->next->lineno,NULL);//TODO:type
@@ -785,14 +788,14 @@ Type Exp_analyse(Node *node){
             }
             field=field->tail;
         }
-        error_output(14,node->child->lineno,NULL);//TODO:type
+        error_output(14,node->child->lineno,id);//TODO:type
         return NULL;
     }
     else if(gencheck(node,4,"Exp","LB","Exp","RB")){
         debug("Exp -> Exp LB Exp RB\n");
         Type type1=Exp_analyse(child1);
         Type type2=Exp_analyse(child1->next->next);
-        if(type1->kind!=ARRAY){
+        if(type1==NULL||type1->kind!=ARRAY){
             error_output(10,node->child->lineno,NULL);//TODO:
             return NULL;
         }
@@ -811,7 +814,7 @@ Type Exp_analyse(Node *node){
     }
     else if(gencheck(node,3,"ID","LP","RP")){
         debug("Exp -> ID LP RP\n");
-        Type type=query_symbol(child1->info_char,1,0);
+        Type type=query_symbol(child1->info_char,1,_depth);
         if(type==NULL){
             error_output(2,node->child->lineno,node->child->info_char);
             return NULL;
