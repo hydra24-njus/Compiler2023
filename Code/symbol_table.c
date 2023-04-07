@@ -6,7 +6,7 @@ int hash(char *name){
     unsigned int val=0,i;
     for(;*name;++name){
         val=(val<<2)+*name;
-        if(i=val&~TABLE_SIZE)val==(val^(i>>12))&TABLE_SIZE;
+        if(i=val&(~TABLE_SIZE))val=(val^(i>>12))&TABLE_SIZE;
     }
     return val;
 }
@@ -20,7 +20,7 @@ void symboltable_init(){
 
 void insert_node(Type type,char *name){
     if(query_symbol(name)){
-        printf("error in insert_node()\n;");
+        printf("error in insert_node();\n");
         exit(0);
     }
     int index=hash(name);
@@ -58,8 +58,8 @@ void print_table(){
         if(hashtable[i]!=NULL){
             sNode node=hashtable[i]->next;
             while(node!=NULL){
-                debug("{%s %s",tpname[node->type->kind],node->name);
-                if(node->type->kind==FUNCTION_T){
+                debug("{%s %s",node->type!=NULL?tpname[node->type->kind]:"unknowtype",node->name);
+                if(node->type&&node->type->kind==FUNCTION_T){
                     FieldList tmp=node->type->u.function.paramlist;
                     debug("(");
                     while(tmp!=NULL){
@@ -68,6 +68,7 @@ void print_table(){
                         if(tmp!=NULL)debug(", ");
                     }
                     debug(")");
+                    debug("returntype:%s",tpname[node->type->u.function.returntype->kind]);
                 }
                 debug("}->");
                 node=node->next;
@@ -79,6 +80,7 @@ void print_table(){
 
 int typecheck(Type A, Type B){
     //相等返回1，不相等返回0；
+    if(A==NULL||B==NULL)return 0;
     if(A->kind!=B->kind){
         return 0;
     }

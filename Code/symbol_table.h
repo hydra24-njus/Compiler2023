@@ -8,7 +8,7 @@ typedef struct Type_* Type;
 typedef struct FieldList_* FieldList;
 typedef struct SymbolNode_* sNode;
 
-#define TABLE_SIZE 0x3fff
+#define TABLE_SIZE (0x3fff)
 
 struct Type_{
 enum { BASIC, ARRAY, STRUCTURE, FUNCTION_T } kind;

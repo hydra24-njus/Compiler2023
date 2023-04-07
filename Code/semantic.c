@@ -136,7 +136,7 @@ void ExtDef_analyse(Node *root){
         //TODO:进入新的作用域
         type=Specifier_analyse(root->child);
         FunDec_analyse(root->child->next,type,1);
-        CompSt_analyse(root->child->next->next);
+        CompSt_analyse(root->child->next->next,type);
     }
     else if(gencheck(root,3,"Specifier","FunDec","SEMI")){
         debug("ExtDef -> Specifier FunDec SEMI\n");
@@ -147,7 +147,6 @@ void ExtDef_analyse(Node *root){
     else if(gencheck(root,2,"Specifier","SEMI")){
         debug("ExtDef -> Specifier SEMI\n");
         type=Specifier_analyse(root->child);
-        //TODO:添加进符号表
     }
     else{
         debug("error in ExtDef_analyse\n");
@@ -204,7 +203,6 @@ Type Specifier_analyse(Node *node){
     }
     else if(gencheck(node,1,"StructSpecifier")){
         debug("Specifier -> StructSpecifier\n");
-        //TODO: 结构体(可能有匿名)
         type=StructSpecifier_analyse(node->child);
     }
     else{
@@ -219,11 +217,28 @@ Type StructSpecifier_analyse(Node *node){
         debug("StructSpecifier -> STRUCT OptTag(empty) LC DefList RC\n");
         //匿名结构体
         FieldList field=DefList_struct_analyse(node->child->next->next);
+        Type type=malloc(sizeof(struct Type_));
+        type->kind=STRUCTURE;
+        type->u.structure=field;
+        char noname[4];
+        static int noname_cnt=0;
+        sprintf(noname,"%d",noname_cnt++);
+        insert_node(type,noname);
+        return type;
     }
     else if(gencheck(node,5,"STRUCT","OptTag","LC","DefList","RC")){
         debug("StructSpecifier -> STRUCT OptTag LC DefList RC\n");
         char *optag=node->child->next->child->info_char;
+        if(query_symbol(optag)!=NULL){
+            error_output(16,node->child->next->lineno,optag);
+            return NULL;
+        }
         FieldList field=DefList_struct_analyse(node->child->next->next->next);
+        Type type=malloc(sizeof(struct Type_));
+        type->kind=STRUCTURE;
+        type->u.structure=field;
+        insert_node(type,optag);
+        return type;
     }
     else if(gencheck(node,2,"STRUCT","Tag")){
         debug("StructSpecifier -> Struct Tag\n");
@@ -233,7 +248,7 @@ Type StructSpecifier_analyse(Node *node){
             return type;
         }
         else{
-            //TODO:报错
+            error_output(17,node->child->next->lineno,tag);
         }
     }
     else{
@@ -244,6 +259,82 @@ Type StructSpecifier_analyse(Node *node){
 }
 
 FieldList DefList_struct_analyse(Node *node){
+    if(gencheck(node,1,"Def")){
+        debug("DefList -> Def DefList(empty) (in struct)\n");
+        return Def_struct_analyse(node->child);
+    }
+    else if(gencheck(node,2,"Def","DefList")){
+        debug("DefList -> Def DefList (in struct)\n");
+        FieldList head=Def_struct_analyse(node->child);
+        head->tail=DefList_struct_analyse(node->child->next);
+        return head;
+    }
+    else{
+        debug("error in DefList_struct_analyse (in struct)\n");
+    }
+    return NULL;
+}
+
+FieldList Def_struct_analyse(Node *node){
+    if(gencheck(node,3,"Specifier","DecList","SEMI")){
+        debug("Def -> Specifier DecList SEMI (in struct)\n");
+        Type type=Specifier_analyse(node->child);
+        return DecList_struct_analyse(node->child->next,type);
+    }
+    else{
+        debug("error in Def_struct_analyse (in struct)\n");
+    }
+    return NULL;
+}
+
+FieldList DecList_struct_analyse(Node *node,Type type){
+    if(gencheck(node,1,"Dec")){
+        debug("DecList -> Dec (in struct)\n");
+        return Dec_struct_analyse(node->child,type);
+    }
+    else if(gencheck(node,3,"Dec","COMMA","DecList")){
+        debug("DecList -> Dec COMMA DecList (in struct)\n");
+        FieldList head=Dec_struct_analyse(node->child,type);
+        head->tail=DecList_struct_analyse(node->child->next->next,type);
+        return head;
+    }
+    else{
+        debug("error in DecList_struct_analyse (in struct)\n");
+    }
+    return NULL;
+}
+
+FieldList Dec_struct_analyse(Node *node,Type type){
+    if(gencheck(node,1,"VarDec")){
+        debug("Dec -> VarDec (in struct)\n");
+        FieldList field=VarDec_analyse(node->child,type);
+        if(query_symbol(field->name)!=NULL){
+            //TODO:改成查本结构体的表
+            error_output(3,node->lineno,field->name);
+        }
+        return field;
+    }
+    else if(gencheck(node,3,"VarDec","ASSIGNOP","Exp")){
+        debug("Dec -> VarDec ASSIGNOP Exp (in struct)\n");
+        //报错：结构体不能赋值
+        error_output(15,node->child->next->lineno,"assignop");
+        //注意 不能return NULL
+        FieldList field=VarDec_analyse(node->child,type);
+        Type type=Exp_analyse(node->child->next->next);
+        if(!typecheck(type,field->type)){
+            //TODO:报错
+            debug("should not reach here 3\n");
+            exit(1);
+        }
+        if(query_symbol(field->name)!=NULL){
+            //TODO:改成查结构体表
+            debug("Error type %d at line %d: %s",3,node->lineno,error_msg[3]);
+        }
+        return field;
+    }
+    else{
+        debug("error in Dec_struct_analyse (in struct)\n");
+    }
     return NULL;
 }
 
@@ -258,7 +349,13 @@ FieldList VarDec_analyse(Node *node,Type type){
     else if(gencheck(node,4,"VarDec","LB","INT","RB")){
         debug("VarDec -> VarDec LB INT RB\n");
         Node *child2=node->child->next->next;
-        //TODO:
+        FieldList field=VarDec_analyse(node->child,type);
+        Type type=malloc(sizeof(struct Type_));
+        type->kind=ARRAY;
+        type->u.array.elem=field->type;
+        type->u.array.size=child2->info_int;
+        field->type=type;
+        return field;
     }
     else{
         debug("error int VarDec_analyse\n");
@@ -274,15 +371,19 @@ void FunDec_analyse(Node *node,Type type,int def){
     functype->kind=FUNCTION_T;
     functype->u.function.returntype=type;
 
-    //TODO:判断是否定义和声明
     if(gencheck(node,4,"ID","LP","VarList","RP")){
         debug("FunDec -> ID LP VarList RP\n");
-        //TODO:创建一个field
         FieldList field=VarList_analyse(node->child->next->next,NULL);
         int cnt=0;
         FieldList tmp=field;
         while(tmp!=NULL){
             cnt++;
+            if(query_symbol(tmp->name)==NULL){
+                insert_node(tmp->type,tmp->name);
+            }
+            else{
+                error_output(3,node->child->next->next->lineno,tmp->name);
+            }
             tmp=tmp->tail;
         }
         functype->u.function.paramscnt=cnt;
@@ -366,23 +467,23 @@ FieldList ParamDec_analyse(Node *node){
     return NULL;
 }
 
-void CompSt_analyse(Node *node){
+void CompSt_analyse(Node *node,Type type){
     if(gencheck(node,2,"LC","RC")){
         debug("Compst -> LC DefList(empty) StmtList(empty) RC\n");
         // Do nothing
     }
     else if(gencheck(node,3,"LC","DefList","RC")){
         debug("Compst -> LC DefList StmtList(empty) RC\n");
-        DefList_analyse(node->child->next->next);
+        DefList_analyse(node->child->next);
     }
     else if(gencheck(node,3,"LC","StmtList","RC")){
         debug("CompSt -> LC DefList(empty) StmtList RC\n");
-        StmtList_analyse(node->child->next);
+        StmtList_analyse(node->child->next,type);
     }
     else if(gencheck(node,4,"LC","DefList","StmtList","RC")){
         debug("Compst -> LC DefList StmtList RC\n");
         DefList_analyse(node->child->next);
-        StmtList_analyse(node->child->next->next);
+        StmtList_analyse(node->child->next->next,type);
     }
     else{
         debug("error in CompSt_analyse\n");
@@ -390,15 +491,15 @@ void CompSt_analyse(Node *node){
     return;
 }
 
-void StmtList_analyse(Node *node){
+void StmtList_analyse(Node *node,Type type){
     if(gencheck(node,1,"Stmt")){
         debug("StmtList -> Stmt StmtList(empty)\n");
-        Stmt_analyse(node->child);
+        Stmt_analyse(node->child,type);
     }
     else if(gencheck(node,2,"Stmt","StmtList")){
         debug("StmtList -> Stmt StmtList\n");
-        Stmt_analyse(node->child);
-        StmtList_analyse(node->child->next);
+        Stmt_analyse(node->child,type);
+        StmtList_analyse(node->child->next,type);
     }
     else{
         debug("error in StmtList_analyse\n");
@@ -406,53 +507,49 @@ void StmtList_analyse(Node *node){
     return;
 }
 
-void Stmt_analyse(Node *node){
+void Stmt_analyse(Node *node,Type type){
     if(gencheck(node,1,"CompSt")){
         debug("Stmt -> CompSt\n");
         //TODO:进入新作用域并分析
-        CompSt_analyse(node->child);
+        CompSt_analyse(node->child,type);
     }
     else if(gencheck(node,2,"Exp","SEMI")){
         debug("Stmt -> Exp SEMI\n");
-        //TODO:检查Exp是否错误
         Exp_analyse(node->child);
     }
     else if(gencheck(node,3,"RETURN","Exp","SEMI")){
         debug("Stmt -> RETURN Exp SEMI\n");
-        //TODO:检查Exp是否错误
         Type etype=Exp_analyse(node->child->next);
-        //TODO:检查返回值类型是否正确
+        if(!typecheck(etype,type)){
+            error_output(8,node->child->next->lineno,NULL);//TODO:type name
+        }
     }
     else if(gencheck(node,5,"IF","LP","Exp","RP","Stmt")){
         debug("Stmt -> IF LP Exp RP Stmt\n");
         Type etype=Exp_analyse(node->child->next->next);
         if(!typecheck(etype,&type_int)){
-            //TODO:if中变量类型错误
             error_output(0,node->lineno,"");
         }
-        Stmt_analyse(node->child->next->next->next->next);
+        Stmt_analyse(node->child->next->next->next->next,type);
     }
     else if(gencheck(node,7,"IF","LP","Exp","RP","Stmt","ELSE","Stmt")){
         debug("Stmt -> IF LP Exp RP Stmt ELSE Stmt\n");
         Type etype=Exp_analyse(node->child->next->next);
         if(!typecheck(etype,&type_int)){
-            //TODO:if中变量类型错误
             error_output(0,node->lineno,"");
 
         }
-        Stmt_analyse(node->child->next->next->next->next);
-        Stmt_analyse(node->child->next->next->next->next->next->next);
+        Stmt_analyse(node->child->next->next->next->next,type);
+        Stmt_analyse(node->child->next->next->next->next->next->next,type);
     }
     else if(gencheck(node,5,"WHILE","LP","Exp","RP","Stmt")){
         debug("Stmt -> WHILE LP Exp RP Stmt\n");
-        //TODO:检查Exp错误
         Type etype=Exp_analyse(node->child->next->next);
         if(!typecheck(etype,&type_int)){
-            //TODO:while中变量类型错误
             error_output(0,node->lineno,"");
 
         }
-        Stmt_analyse(node->child->next->next->next->next);
+        Stmt_analyse(node->child->next->next->next->next,type);
     }
     else{
         debug("error in Stmt_analyse\n");
@@ -509,7 +606,6 @@ void Dec_analyse(Node *node,Type type){
         debug("Dec -> VarDec\n");
         FieldList field=VarDec_analyse(node->child,type);
         if(query_symbol(field->name)!=NULL){
-            //TODO:报错
             error_output(3,node->lineno,field->name);
         }
         else{
@@ -522,12 +618,10 @@ void Dec_analyse(Node *node,Type type){
         FieldList field=VarDec_analyse(node->child,type);
         Type type=Exp_analyse(node->child->next->next);
         if(!typecheck(type,field->type)){
-            //TODO:报错
             debug("should not reach here 3\n");
             exit(1);
         }
         if(query_symbol(field->name)!=NULL){
-            //TODO:报错
             debug("Error type %d at line %d: %s",3,node->lineno,error_msg[3]);
         }
         else{
@@ -555,7 +649,7 @@ Type Exp_analyse(Node *node){
         debug("Exp -> ID\n");
         Type type=query_symbol(child1->info_char);
         if(type==NULL){
-            //TODO:报错
+            error_output(1,node->child->lineno,node->child->info_char);
         }
         else{
             return type;
@@ -569,6 +663,18 @@ Type Exp_analyse(Node *node){
         debug("Exp -> NOT Exp\n");
         return Exp_analyse(child1->next);
     }
+    else if(gencheck(node,3,"Exp","ASSIGNOP","Exp")){
+        debug("Exp -> Exp ASSIGNOP Exp\n");
+        Type type1=Exp_analyse(child1);
+        Type type2=Exp_analyse(child1->next->next);
+        if(typecheck(type1,type2)){
+            return &type_int;
+        }
+        else{
+            //TODO:区分赋值和其它运算
+            error_output(5,node->child->next->lineno,NULL);//TODO:type
+        }
+    }
     else if(gencheck(node,3,"Exp","OP","Exp")){
         debug("Exp -> Exp OP Exp\n");
         Type type1=Exp_analyse(child1);
@@ -577,23 +683,44 @@ Type Exp_analyse(Node *node){
             return type1;
         }
         else{
-            //TODO:报错
+            //TODO:区分赋值和其它运算
+            error_output(7,node->child->lineno,NULL);//TODO:type
         }
     }
+    
     else if(gencheck(node,3,"Exp","DOT","ID")){
         debug("Exp -> Exp DOT ID\n");
         Type type1=Exp_analyse(child1);
-        //TODO:找到ID的类型并返回
+        if(type1==NULL||type1->kind!=STRUCTURE){
+            error_output(13,node->child->lineno,NULL);//TODO:ID
+            return NULL;
+        }
+        char *id=child1->next->next->info_char;
+        FieldList field=type1->u.structure;
+        while(field!=NULL){
+            if(strcmp(id,field->name)==0){
+                return field->type;
+            }
+            field=field->tail;
+        }
+        error_output(14,node->child->lineno,NULL);//TODO:type
+        return NULL;
     }
     else if(gencheck(node,4,"Exp","LB","Exp","RB")){
         debug("Exp -> Exp LB Exp RB\n");
         Type type1=Exp_analyse(child1);
         Type type2=Exp_analyse(child1->next->next);
+        if(type1->kind!=ARRAY){
+            error_output(10,node->child->lineno,NULL);//TODO:
+            return NULL;
+        }
         if(typecheck(type2,&type_int)){
             return type1->u.array.elem;
         }
         else{
             //报错
+            error_output(12,node->child->lineno,NULL);//TODO:
+            return type1->u.array.elem;
         }
     }
     else if(gencheck(node,3,"LP","Exp","RP")){
@@ -602,28 +729,39 @@ Type Exp_analyse(Node *node){
     }
     else if(gencheck(node,3,"ID","LP","RP")){
         debug("Exp -> ID LP RP\n");
-        //TODO:函数调用
         Type type=query_symbol(child1->info_char);
+        if(type==NULL){
+            error_output(2,node->child->lineno,node->child->info_char);
+            return NULL;
+        }
+        else if(type->kind!=FUNCTION_T){
+            error_output(11,node->child->lineno,node->child->info_char);
+            return NULL;
+        }
         if(type->u.function.paramscnt==0){
             return type->u.function.returntype;
         }
         else{
-            //TODO:函数调用的参数数量不符
             error_output(9,node->lineno,child1->info_char);
         }
     }
     else if(gencheck(node,4,"ID","LP","Args","RP")){
         debug("Exp -> ID LP Args RP\n");
-        //TODO:函数调用
         Type type=query_symbol(child1->info_char);
+        if(type==NULL){
+            error_output(2,node->child->lineno,node->child->info_char);
+            return NULL;
+        }
+        if(type->kind!=FUNCTION_T){
+            error_output(11,node->child->lineno,node->child->info_char);
+            return NULL;
+        }
         FieldList head=type->u.function.paramlist;
         if(Args_analyse(child1->next->next,head)==0){
             return type->u.function.returntype;
         }
         else{
-            //TODO:函数调用的参数数量/类型不符
             error_output(9,node->lineno,child1->info_char);
-
         }
     }
     else{

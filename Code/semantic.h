@@ -16,9 +16,9 @@ FieldList VarDec_analyse(Node *node,Type type);
 void FunDec_analyse(Node *node,Type type,int def);
 FieldList VarList_analyse(Node *node,FieldList head);
 FieldList ParamDec_analyse(Node *node);
-void CompSt_analyse(Node *node);
-void StmtList_analyse(Node *node);
-void Stmt_analyse(Node *node);
+void CompSt_analyse(Node *node,Type type);
+void StmtList_analyse(Node *node,Type type);
+void Stmt_analyse(Node *node,Type type);
 void DefList_analyse(Node *node);
 void Def_analyse(Node *node);
 void DecList_analyse(Node *node,Type type);
@@ -27,5 +27,7 @@ Type Exp_analyse(Node *node);
 int  Args_analyse(Node *node,FieldList field);
 
 FieldList DefList_struct_analyse(Node *node);
-
+FieldList Def_struct_analyse(Node *node);
+FieldList DecList_struct_analyse(Node *node,Type type);
+FieldList Dec_struct_analyse(Node *node,Type type);
 #endif
