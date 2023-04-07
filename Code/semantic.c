@@ -75,6 +75,10 @@ int gencheck(Node *root,int cnt,...){
             }
         }
         else{
+            if(child->node_type!=synunit&&child->node_type!=lexid&&child->node_type!=lexother){
+                va_end(ap);
+                return 0;
+            }
             if(strcmp(name,child->info_char)!=0){
                 va_end(ap);
                 return 0;
@@ -308,9 +312,12 @@ FieldList Dec_struct_analyse(Node *node,Type type){
     if(gencheck(node,1,"VarDec")){
         debug("Dec -> VarDec (in struct)\n");
         FieldList field=VarDec_analyse(node->child,type);
-        if(query_symbol(field->name)!=NULL){
+        if(query_symbol_struct(field->name)!=NULL){
             //TODO:改成查本结构体的表
-            error_output(3,node->lineno,field->name);
+            error_output(15,node->lineno,field->name);
+        }
+        else{
+            insert_node_struct(field->type,field->name);
         }
         return field;
     }
@@ -326,9 +333,12 @@ FieldList Dec_struct_analyse(Node *node,Type type){
             debug("should not reach here 3\n");
             exit(1);
         }
-        if(query_symbol(field->name)!=NULL){
+        if(query_symbol_struct(field->name)!=NULL){
             //TODO:改成查结构体表
             debug("Error type %d at line %d: %s",3,node->lineno,error_msg[3]);
+        }
+        else{
+            insert_node_struct(field->type,field->name);
         }
         return field;
     }
@@ -667,11 +677,23 @@ Type Exp_analyse(Node *node){
         debug("Exp -> Exp ASSIGNOP Exp\n");
         Type type1=Exp_analyse(child1);
         Type type2=Exp_analyse(child1->next->next);
+        if(gencheck(node->child,1,"ID")){
+
+        }
+        else if(gencheck(node->child,4,"Exp","LB","Exp","RB")){
+
+        }
+        else if(gencheck(node->child,3,"Exp","DOT","ID")){
+
+        }
+        else{
+            //左值错误
+            error_output(6,node->child->next->lineno,NULL);
+        }
         if(typecheck(type1,type2)){
             return &type_int;
         }
         else{
-            //TODO:区分赋值和其它运算
             error_output(5,node->child->next->lineno,NULL);//TODO:type
         }
     }

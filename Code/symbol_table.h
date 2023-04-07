@@ -9,7 +9,7 @@ typedef struct FieldList_* FieldList;
 typedef struct SymbolNode_* sNode;
 
 #define TABLE_SIZE (0x3fff)
-
+#define STRUCT_SIZE (0x0fff)
 struct Type_{
 enum { BASIC, ARRAY, STRUCTURE, FUNCTION_T } kind;
     union{
@@ -38,8 +38,14 @@ struct SymbolNode_{
 };
 
 void symboltable_init();
+
 void insert_node(Type type,char *name);
 Type query_symbol(char *name);
+
+void insert_node_struct(Type type,char *name);
+Type query_symbol_struct(char *name);
+void delete_struct_table();
+
 void print_table();
 int typecheck(Type A, Type B);
 #endif

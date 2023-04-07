@@ -8,13 +8,11 @@
 *   每个语法单元作为一个节点
 *   
     */
-enum{
-    synunit=1,lexid,lextype,lexint,lexfloat,lexother
-};
+
 typedef struct node{
     struct node* child;
     struct node* next;
-    unsigned node_type;//当前节点类型；
+    enum{synunit=1,lexid,lextype,lexint,lexfloat,lexother} node_type;//当前节点类型；
     int lineno;
     union 
     {
