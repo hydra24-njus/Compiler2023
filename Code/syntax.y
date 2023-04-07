@@ -14,7 +14,8 @@ unsigned check(int lineno){
     _error[cnt++]=lineno;
     return 1;
 }
-
+#define YYDEBUG 1
+int yydebug=1;
 %}
 
 %union{
@@ -84,6 +85,7 @@ Specifier:      TYPE                        {$$=creat_node(synunit,@$.first_line
 StructSpecifier:STRUCT OptTag LC DefList RC {$$=creat_node(synunit,@$.first_line,0,0,"StructSpecifier");build_tree($$,$5);build_tree($$,$4);build_tree($$,$3);build_tree($$,$2);build_tree($$,$1);}
     |           STRUCT Tag                  {$$=creat_node(synunit,@$.first_line,0,0,"StructSpecifier");build_tree($$,$2);build_tree($$,$1);}
     |           STRUCT error                {$$=NULL;if(check(@1.first_line))printf("Error type B at line %d: Illegal identifier\n",@1.first_line);}
+//    |           error Tag                   {$$=NULL;if(check(@1.first_line))printf("Error type B at line %d: expect struct\n",@1.first_line);}
     ;
 OptTag:         ID                          {$$=creat_node(synunit,@$.first_line,0,0,"OptTag");build_tree($$,$1);}
     |                                       {$$=NULL;}
@@ -93,7 +95,7 @@ Tag:            ID                          {$$=creat_node(synunit,@$.first_line
 // 7.1.4 Declarators
 VarDec:         ID                          {$$=creat_node(synunit,@$.first_line,0,0,"VarDec");build_tree($$,$1);}
     |           VarDec LB INT RB            {$$=creat_node(synunit,@$.first_line,0,0,"VarDec");build_tree($$,$4);build_tree($$,$3);build_tree($$,$2);build_tree($$,$1);}
-    |           VarDec LB error RB          {$$=NULL;if(check(@1.first_line))printf("Error type B at line %d: Definition of an array only accepts an INT dimension\n",@1.first_line);}
+    |           VarDec LB error RB          {$$=NULL;if(check(@2.first_line))printf("Error type B at line %d: Definition of an array only accepts an INT dimension\n",@2.first_line);}
     ;
 FunDec:         ID LP VarList RP            {$$=creat_node(synunit,@$.first_line,0,0,"FunDec");build_tree($$,$4);build_tree($$,$3);build_tree($$,$2);build_tree($$,$1);}
     |           ID LP RP                    {$$=creat_node(synunit,@$.first_line,0,0,"FunDec");build_tree($$,$3);build_tree($$,$2);build_tree($$,$1);}
@@ -110,7 +112,6 @@ CompSt:         LC DefList StmtList RC      {$$=creat_node(synunit,@$.first_line
 StmtList:       Stmt StmtList               {$$=creat_node(synunit,@$.first_line,0,0,"StmtList");build_tree($$,$2);build_tree($$,$1);}
     |                                       {$$=NULL;}
     |           Stmt Specifier error SEMI StmtList  {$$=NULL;if(check(@2.first_line))printf("Error type B at line %d: Illegal declaration\n",@2.first_line);}
-//    |           error StmtList              {if(check(@1.first_line))printf("Error type B at line %d: Expected \";\"\n",@1.first_line);}
     ;
 Stmt:           Exp SEMI                    {$$=creat_node(synunit,@$.first_line,0,0,"Stmt");build_tree($$,$2);build_tree($$,$1);}
     |           CompSt                      {$$=creat_node(synunit,@$.first_line,0,0,"Stmt");build_tree($$,$1);}
@@ -120,10 +121,10 @@ Stmt:           Exp SEMI                    {$$=creat_node(synunit,@$.first_line
     |           IF LP Exp RP Stmt ELSE Stmt {$$=creat_node(synunit,@$.first_line,0,0,"Stmt");build_tree($$,$7);build_tree($$,$6);build_tree($$,$5);build_tree($$,$4);build_tree($$,$3);build_tree($$,$2);build_tree($$,$1);}
     |           IF LP Exp error Stmt ELSE Stmt {$$=NULL;if(check(@3.first_line))printf("Error type B at line %d: Expected \")\"\n",@3.first_line);}
     |           WHILE LP Exp RP Stmt        {$$=creat_node(synunit,@$.first_line,0,0,"Stmt");build_tree($$,$5);build_tree($$,$4);build_tree($$,$3);build_tree($$,$2);build_tree($$,$1);}
-    |           WHILE LP Exp error          {$$=NULL;if(check(@1.first_line))printf("Error type B at line %d: Expected \")\"\n",@1.first_line);}
-    |           Exp COMMA error SEMI        {$$=NULL;if(check(@1.first_line))printf("Error type B at line %d: Unexpected \",\"\n",@1.first_line);}
+    |           WHILE LP Exp error          {$$=NULL;if(check(@3.first_line))printf("Error type B at line %d: Expected \")\"\n",@3.first_line);}
+    |           Exp COMMA error SEMI        {$$=NULL;if(check(@2.first_line))printf("Error type B at line %d: Unexpected \",\"\n",@2.first_line);}
     |           Exp error                   {$$=NULL;if(check(@1.first_line))printf("Error type B at line %d: missing \";\"\n",@1.first_line);}
-    |           RETURN Exp error            {$$=NULL;if(check(@1.first_line))printf("Error type B at line %d: missing \";\"\n",@1.first_line);}
+    |           RETURN Exp error            {$$=NULL;if(check(@2.first_line))printf("Error type B at line %d: missing \";\"\n",@2.first_line);}
     |           error SEMI                  {$$=NULL;if(check(@1.first_line))printf("Error type B at line %d: stmt error\n",@1.first_line);}
     ;
 // 7.1.6 Local Definitions
@@ -131,7 +132,7 @@ DefList:        Def DefList                 {$$=creat_node(synunit,@$.first_line
     |                                       {$$=NULL;}
     ;
 Def:            Specifier DecList SEMI      {$$=creat_node(synunit,@$.first_line,0,0,"Def");build_tree($$,$3);build_tree($$,$2);build_tree($$,$1);}
-    |           Specifier error SEMI        {$$=NULL;if(check(@1.first_line))printf("Error type B at line %d: Wrong variable\n",@1.first_line);}
+    |           Specifier error SEMI        {$$=NULL;if(check(@3.first_line))printf("Error type B at line %d: Wrong variable\n",@3.first_line);}
     ;
 DecList:        Dec                         {$$=creat_node(synunit,@$.first_line,0,0,"DecList");build_tree($$,$1);}
     |           Dec COMMA DecList           {$$=creat_node(synunit,@$.first_line,0,0,"DecList");build_tree($$,$3);build_tree($$,$2);build_tree($$,$1);}
@@ -157,7 +158,7 @@ Exp:            Exp ASSIGNOP Exp            {$$=creat_node(synunit,@$.first_line
     |           ID LP error RP              {$$=NULL;if(check(@1.first_line))printf("Error type B at line %d: Error function\n",@1.first_line);}
     |           ID LP RP                    {$$=creat_node(synunit,@$.first_line,0,0,"Exp");build_tree($$,$3);build_tree($$,$2);build_tree($$,$1);}
     |           Exp LB Exp RB               {$$=creat_node(synunit,@$.first_line,0,0,"Exp");build_tree($$,$4);build_tree($$,$3);build_tree($$,$2);build_tree($$,$1);}
-    |           Exp LB error RB             {$$=NULL;if(check(@1.first_line))printf("Error type B at line %d: Error dimension\n",@1.first_line);}
+    |           Exp LB error RB             {$$=NULL;if(check(@2.first_line))printf("Error type B at line %d: Error dimension\n",@2.first_line);}
     |           Exp DOT ID                  {$$=creat_node(synunit,@$.first_line,0,0,"Exp");build_tree($$,$3);build_tree($$,$2);build_tree($$,$1);}
     |           ID                          {$$=creat_node(synunit,@$.first_line,0,0,"Exp");build_tree($$,$1);}
     |           INT                         {$$=creat_node(synunit,@$.first_line,0,0,"Exp");build_tree($$,$1);}

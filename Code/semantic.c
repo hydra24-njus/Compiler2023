@@ -811,7 +811,7 @@ Type Exp_analyse(Node *node){
     }
     else if(gencheck(node,3,"ID","LP","RP")){
         debug("Exp -> ID LP RP\n");
-        Type type=query_symbol(child1->info_char,1,_depth);
+        Type type=query_symbol(child1->info_char,1,0);
         if(type==NULL){
             error_output(2,node->child->lineno,node->child->info_char);
             return NULL;
