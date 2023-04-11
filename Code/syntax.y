@@ -133,6 +133,7 @@ DefList:        Def DefList                 {$$=creat_node(synunit,@$.first_line
     ;
 Def:            Specifier DecList SEMI      {$$=creat_node(synunit,@$.first_line,0,0,"Def");build_tree($$,$3);build_tree($$,$2);build_tree($$,$1);}
     |           Specifier error SEMI        {$$=NULL;if(check(@3.first_line))printf("Error type B at line %d: Wrong variable\n",@3.first_line);}
+    |           ID ID SEMI                  {$$=NULL;yyerror("syntax error");if(check(@1.first_line))printf("Error type B at line %d: Expect struct\n",@1.first_line);}
     ;
 DecList:        Dec                         {$$=creat_node(synunit,@$.first_line,0,0,"DecList");build_tree($$,$1);}
     |           Dec COMMA DecList           {$$=creat_node(synunit,@$.first_line,0,0,"DecList");build_tree($$,$3);build_tree($$,$2);build_tree($$,$1);}

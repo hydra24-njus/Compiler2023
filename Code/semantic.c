@@ -21,7 +21,7 @@ static char* error_msg[20]={
     "Type mismatched for assignment",//5
     "The left-hand side of an assignment must be a variable",//6
     "Type mismatched for operands",//7
-    "Type mismatched for return",//8
+    "Type mismatched for return, should be",//8
     "Function is not applicable for arguments",//9
     "variable is not an array",//10
     "variable is not a function",//11
@@ -34,6 +34,7 @@ static char* error_msg[20]={
     "Undefined function",//18
     "Inconsistent declaration of function"//19
 };
+static char* type_name[5]={"int","float","array","struct","function"};
 extern struct FunctionList_ *functable;
 int _depth=0;
 
@@ -438,6 +439,8 @@ void FunDec_analyse(Node *node,Type type,int def,ScopeList scope){
         if(qtype==NULL){
             //未定义 or 声明的函数
             insert_node(functype,node->child->info_char,0,FUNCTION,NULL);
+            Type tp=query_symbol(node->child->info_char,0,0);
+            tp->u.function.isdef=def;
             if(def==0){
                 //插入到未声明的链表中
                 insert_function(node->child->lineno,node->child->info_char);
@@ -465,6 +468,8 @@ void FunDec_analyse(Node *node,Type type,int def,ScopeList scope){
         if(qtype==NULL){
             //未定义 or 声明的函数
             insert_node(functype,node->child->info_char,0,VARIABLE,NULL);
+            Type tp=query_symbol(node->child->info_char,0,0);
+            tp->u.function.isdef=def;
             if(def==0){
                 //插入到未声明的链表中
                 insert_function(node->child->lineno,node->child->info_char);
@@ -584,7 +589,7 @@ void Stmt_analyse(Node *node,Type type,ScopeList scope){
         debug("Stmt -> RETURN Exp SEMI\n");
         Type etype=Exp_analyse(node->child->next);
         if(!typecheck(etype,type)){
-            error_output(8,node->child->next->lineno,NULL);//TODO:type name
+            error_output(8,node->child->next->lineno,type_name[type->kind==BASIC?type->u.basic:type->kind+1]);
         }
     }
     else if(gencheck(node,5,"IF","LP","Exp","RP","Stmt")){
@@ -740,13 +745,13 @@ Type Exp_analyse(Node *node){
         }
         else{
             //左值错误
-            error_output(6,node->child->next->lineno,NULL);
+            error_output(6,node->child->next->lineno,"\40");
         }
         if(typecheck(type1,type2)){
             return type1;
         }
         else{
-            error_output(5,node->child->next->lineno,NULL);//TODO:type
+            error_output(5,node->child->next->lineno,"\40");//TODO:type
         }
     }
     else if(gencheck(node,3,"Exp","RELOP","Exp")){
@@ -757,7 +762,7 @@ Type Exp_analyse(Node *node){
         }
         else{
             //TODO:区分赋值和其它运算
-            error_output(7,node->child->lineno,NULL);//TODO:type
+            error_output(7,node->child->lineno,"\40");//TODO:type
         }
         return &type_int;
     }
@@ -770,14 +775,14 @@ Type Exp_analyse(Node *node){
         }
         else{
             //TODO:区分赋值和其它运算
-            error_output(7,node->child->lineno,NULL);//TODO:type
+            error_output(7,node->child->lineno,"\40");//TODO:type
         }
     }
     else if(gencheck(node,3,"Exp","DOT","ID")){
         debug("Exp -> Exp DOT ID\n");
         Type type1=Exp_analyse(child1);
         if(type1==NULL||type1->kind!=STRUCTURE){
-            error_output(13,node->child->lineno,NULL);//TODO:ID
+            error_output(13,node->child->lineno,"\40");//TODO:ID
             return NULL;
         }
         char *id=child1->next->next->info_char;
@@ -796,7 +801,7 @@ Type Exp_analyse(Node *node){
         Type type1=Exp_analyse(child1);
         Type type2=Exp_analyse(child1->next->next);
         if(type1==NULL||type1->kind!=ARRAY){
-            error_output(10,node->child->lineno,NULL);//TODO:
+            error_output(10,node->child->lineno,"\40");//TODO:
             return NULL;
         }
         if(typecheck(type2,&type_int)){
@@ -804,7 +809,7 @@ Type Exp_analyse(Node *node){
         }
         else{
             //报错
-            error_output(12,node->child->lineno,NULL);//TODO:
+            error_output(12,node->child->lineno,"\40");//TODO:
             return type1->u.array.elem;
         }
     }
