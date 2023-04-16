@@ -5,7 +5,6 @@ struct SymbolNode_ *hashtable[TABLE_SIZE];
 struct SymbolNode_ *structable[STRUCT_SIZE];
 struct FunctionList_ *functable;
 struct ScopeList_ *scopelist;
-unsigned _depth;
 
 int hash(char *name,int size){
     unsigned int val=0,i;
@@ -97,49 +96,35 @@ void delete_node(struct SymbolNode_ *node){
     free(node);
 }
 
+
 //结构体内部作用域的符号表
-void insert_node_struct(Type type,char *name){
+void insert_node_struct(Type type,char *name,int deep){
     int index=hash(name,STRUCT_SIZE);
     struct SymbolNode_ *node=malloc(sizeof(struct SymbolNode_));
     node->name=name;
     node->next=NULL;
     node->type=type;
     node->next=structable[index]->next;
+    node->depth=deep;
     structable[index]->next=node;
 
 }
 
-Type query_symbol_struct(char *name){
+Type query_symbol_struct(char *name,int deep){
     int index=hash(name,STRUCT_SIZE);
     sNode ret=NULL;
     for(sNode i=structable[index]->next;i;i=i->next){
         if(strcmp(name,i->name)==0){
-            ret=i;
-            break;
+            if(i->depth==deep){
+                ret=i;
+                break;
+            }
         }
     }
     if(ret){
         return ret->type;
     }
     return NULL;
-}
-
-void delete_struct_node(char *name){
-    int index=hash(name,STRUCT_SIZE);
-    sNode ret=NULL;
-    sNode prev=structable[index];
-    for(sNode i=structable[index]->next;i;i=i->next){
-        if(strcmp(name,i->name)==0){
-            ret=i;//最深层的
-            break;
-        }
-        prev=i;
-    }
-    if(ret){
-        prev->next=ret->next;
-        free(ret);
-    }
-    return ;
 }
 
 void delete_struct_table(){
@@ -249,6 +234,7 @@ int typecheck(Type A, Type B){
     //相等返回1，不相等返回0；
     if(A==NULL&&B==NULL)return 1;
     else if(A==NULL||B==NULL)return 0;
+    else if(A==B)return 1;
     else if(A->kind!=B->kind){
         return 0;
     }

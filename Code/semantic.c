@@ -37,7 +37,7 @@ static char* error_msg[20]={
 static char* type_name[5]={"int","float","array","struct","function"};
 extern struct FunctionList_ *functable;
 int _depth=0;
-
+int _struct_depth=0;
 int gencheck(Node *root,int cnt,...){
     va_list ap;
     va_start(ap,cnt);
@@ -155,11 +155,7 @@ void ExtDef_analyse(Node *root){
         ScopeList scope1=enter_new_scope();
         _depth+=1;
             FunDec_analyse(root->child->next,type,1,scope1);
-            ScopeList scope2=enter_new_scope();
-            _depth+=1;
-                CompSt_analyse(root->child->next->next,type,scope2);
-            _depth-=1;
-            exit_cur_scope();
+            CompSt_analyse(root->child->next->next,type,scope1);
         _depth-=1;
         exit_cur_scope();
     }
@@ -245,7 +241,9 @@ Type StructSpecifier_analyse(Node *node){
     if(gencheck(node,4,"STRUCT","LC","DefList","RC")){
         debug("StructSpecifier -> STRUCT OptTag(empty) LC DefList RC\n");
         //匿名结构体
+        _struct_depth++;
         FieldList field=DefList_struct_analyse(node->child->next->next);
+        _struct_depth--;
         Type type=malloc(sizeof(struct Type_));
         type->kind=STRUCTURE;
         type->u.structure=field;
@@ -253,7 +251,7 @@ Type StructSpecifier_analyse(Node *node){
             delete_struct_table(field->name);
             field=field->tail;
         }
-        char noname[4];
+        char *noname=malloc(4*sizeof(char));
         static int noname_cnt=0;
         sprintf(noname,"%d",noname_cnt++);
         insert_node(type,noname,0,STRUCT,NULL);
@@ -266,13 +264,18 @@ Type StructSpecifier_analyse(Node *node){
             error_output(16,node->child->next->lineno,optag);
             return NULL;
         }
+        _struct_depth++;
         FieldList field=DefList_struct_analyse(node->child->next->next->next);
+        _struct_depth--;
         Type type=malloc(sizeof(struct Type_));
         type->kind=STRUCTURE;
         type->u.structure=field;
         while(field!=NULL){
             delete_struct_table(field->name);
             field=field->tail;
+        }
+        if(query_symbol(optag,0,0)!=NULL){
+            error_output(16,node->child->next->lineno,optag);
         }
         insert_node(type,optag,0,STRUCT,NULL);
         return type;
@@ -288,8 +291,34 @@ Type StructSpecifier_analyse(Node *node){
             error_output(17,node->child->next->lineno,tag);
         }
     }
+    else if(gencheck(node,4,"STRUCT","OptTag","LC","RC")){
+        debug("StructSpecifier -> Struct OptTag LC RC\n");
+        char *optag=node->child->next->child->info_char;
+        if(query_symbol(optag,0,0)!=NULL){
+            error_output(16,node->child->next->lineno,optag);
+            return NULL;
+        }
+        Type type=malloc(sizeof(struct Type_));
+        type->kind=STRUCTURE;
+        type->u.structure=NULL;
+        insert_node(type,optag,0,STRUCT,NULL);
+        return type;
+    }
+    else if(gencheck(node,3,"STRUCT","LC","RC")){
+        debug("StructSpecifier -> STRUCT LC RC\n");
+        //匿名结构体
+        FieldList field=NULL;
+        Type type=malloc(sizeof(struct Type_));
+        type->kind=STRUCTURE;
+        type->u.structure=field;
+        char noname[4];
+        static int noname_cnt=0;
+        sprintf(noname,"%d",noname_cnt++);
+        insert_node(type,noname,0,STRUCT,NULL);
+        return type;
+    }
     else{
-        debug("error in StructSpecifier_analyse\n");
+        debug("error in StructSpecifier_analyse(%d)\n",node->lineno);
         exit(1);
     }
     return NULL;
@@ -349,12 +378,12 @@ FieldList Dec_struct_analyse(Node *node,Type type){
     if(gencheck(node,1,"VarDec")){
         debug("Dec -> VarDec (in struct)\n");
         FieldList field=VarDec_analyse(node->child,type);
-        if(query_symbol_struct(field->name)!=NULL){
+        if(query_symbol_struct(field->name,_struct_depth)!=NULL){
             //TODO:改成查本结构体的表
             error_output(15,node->lineno,field->name);
         }
         else{
-            insert_node_struct(field->type,field->name);
+            insert_node_struct(field->type,field->name,_struct_depth);
         }
         return field;
     }
@@ -367,14 +396,14 @@ FieldList Dec_struct_analyse(Node *node,Type type){
         Type type=Exp_analyse(node->child->next->next);
         if(!typecheck(type,field->type)){
             //TODO:报错
-            debug("should not reach here 3\n");
+            debug("should not reach here 4\n");
             exit(1);
         }
-        if(query_symbol_struct(field->name)!=NULL){
+        if(query_symbol_struct(field->name,_struct_depth)!=NULL){
             error_output(15,node->child->lineno,field->name);
         }
         else{
-            insert_node_struct(field->type,field->name);
+            insert_node_struct(field->type,field->name,_struct_depth);
         }
         return field;
     }
@@ -425,7 +454,7 @@ void FunDec_analyse(Node *node,Type type,int def,ScopeList scope){
         while(tmp!=NULL){
             cnt++;
             if(query_symbol(tmp->name,0,_depth)==NULL){
-                insert_node(tmp->type,tmp->name,_depth,FUNCTION,scope);
+                insert_node(tmp->type,tmp->name,_depth,VARIABLE,scope);
             }
             else{
                 error_output(3,node->child->next->next->lineno,tmp->name);
@@ -467,7 +496,7 @@ void FunDec_analyse(Node *node,Type type,int def,ScopeList scope){
         Type qtype=query_symbol(node->child->info_char,1,0);
         if(qtype==NULL){
             //未定义 or 声明的函数
-            insert_node(functype,node->child->info_char,0,VARIABLE,NULL);
+            insert_node(functype,node->child->info_char,0,FUNCTION,NULL);
             Type tp=query_symbol(node->child->info_char,0,0);
             tp->u.function.isdef=def;
             if(def==0){
@@ -685,8 +714,7 @@ void Dec_analyse(Node *node,Type type,ScopeList scope){
         FieldList field=VarDec_analyse(node->child,type);
         Type type=Exp_analyse(node->child->next->next);
         if(!typecheck(type,field->type)){
-            debug("should not reach here 3\n");
-            exit(1);
+            error_output(5,node->child->lineno,"\40");
         }
         if(query_symbol(field->name,0,_depth)!=NULL){
             error_output(3,node->child->lineno,field->name);
@@ -833,6 +861,7 @@ Type Exp_analyse(Node *node){
         }
         else{
             error_output(9,node->lineno,child1->info_char);
+            return type->u.function.returntype;
         }
     }
     else if(gencheck(node,4,"ID","LP","Args","RP")){
@@ -852,6 +881,7 @@ Type Exp_analyse(Node *node){
         }
         else{
             error_output(9,node->lineno,child1->info_char);
+            return type->u.function.returntype;
         }
     }
     else{
