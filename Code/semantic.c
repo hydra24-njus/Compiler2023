@@ -519,6 +519,7 @@ void FunDec_analyse(Node *node,Type type,int def,ScopeList scope){
     else{
         debug("error in _analyse\n");
     }
+    if(def)trans_FunDec(node);
     return;
 }
 
@@ -612,6 +613,8 @@ void Stmt_analyse(Node *node,Type type,ScopeList scope){
     else if(gencheck(node,2,"Exp","SEMI")){
         debug("Stmt -> Exp SEMI\n");
         Exp_analyse(node->child);
+        //ir.c
+        trans_Exp(node->child);
     }
     else if(gencheck(node,3,"RETURN","Exp","SEMI")){
         debug("Stmt -> RETURN Exp SEMI\n");
@@ -619,6 +622,12 @@ void Stmt_analyse(Node *node,Type type,ScopeList scope){
         if(!typecheck(etype,type)){
             error_output(8,node->child->next->lineno,type_name[type->kind==BASIC?type->u.basic:type->kind+1]);
         }
+        //ir.c
+        Operand op=trans_Exp(node->child->next);
+        InterCodes ret=new_intercode(IR_RETURN);
+        free(ret->code->u.unaryop.unary);
+        ret->code->u.unaryop.unary=op;
+        insert_code(ret);
     }
     else if(gencheck(node,5,"IF","LP","Exp","RP","Stmt")){
         debug("Stmt -> IF LP Exp RP Stmt\n");

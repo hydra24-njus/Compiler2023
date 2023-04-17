@@ -5,31 +5,58 @@
 
 typedef struct Operand_* Operand;
 struct Operand_ {
-    enum { IR_VARIABLE, IR_CONSTANT, IR_ADDRESS } kind;
+    enum { IR_VARIABLE, IR_CONSTANT, IR_ADDRESS, IR_FUNCNAME, IR_TMPOP } kind;
     union {
-        int var_no;
+        char *varname;
+        char *funcname;
         int value;
+        int tmpno;
     } u;
 };
 
-struct InterCode{
-    enum { IR_ASSIGN, IR_ADD, IR_SUB, IR_MUL } kind;
+typedef struct InterCode_* InterCode;
+struct InterCode_{
+    enum {  
+        IR_LABEL,//1
+        IR_FUNCTION,//1
+        IR_GOTO,//1
+        IR_RETURN,//1
+        IR_ARG,//1
+        IR_PARAM,//1
+        IR_READ,//1
+        IR_WRITE,//1
+        IR_ASSIGN,//2
+        IR_CALL,//2
+        IR_DEC,//2
+        IR_ADD,//3
+        IR_SUB,//3
+        IR_MUL,//3
+        IR_DIV,//3
+        IR_IFGOTO//4
+    } kind;
     union {
-        struct { Operand right, left; } assign;
-        struct { Operand result, op1, op2; } binop;
+        struct { Operand unary; }                       unaryop;
+        struct { Operand right, left; }                 assign;
+        struct { Operand result, op1, op2; }            binop;
+        struct { Operand op1, op2, relop, lable; }      gotop;
     } u;
 };
 
-struct InterCodes {
-    struct InterCode code;
-    struct InterCodes *prev, *next; 
+typedef struct InterCodes_* InterCodes;
+struct InterCodes_ {
+    InterCode code;
+    InterCodes prev, next; 
 };
 
+InterCodes new_intercode(int kind);
+void insert_code(InterCodes node);
 
 void trans_FunDec(Node *root);
-void trans_Stmt(Node *root);
+void trans_Stmt(Node *root,int kind);
 
 
-static void trans_Exp(Node *root);
+Operand trans_Exp(Node *root);
+
+void print_ir(FILE *fp);
 
 #endif
