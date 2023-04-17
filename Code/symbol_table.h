@@ -52,16 +52,16 @@ struct ScopeList_{
 
 void symboltable_init();
 
-void insert_node(Type type,char *name,int deep,int kind,ScopeList scope);
-Type query_symbol(char *name,int type,int deep);
+void insert_node(Type type,const char *name,int deep,int kind,ScopeList scope);
+Type query_symbol(const char *name,int type,int deep);
 
 
-void insert_node_struct(Type type,char *name,int deep);
-Type query_symbol_struct(char *name,int deep);
+void insert_node_struct(Type type,const char *name,int deep);
+Type query_symbol_struct(const char *name,int deep);
 void delete_struct_table();
 
-void insert_function(int lineno,char *name);
-void delete_function(char *name);
+void insert_function(int lineno,const char *name);
+void delete_function(const char *name);
 void delete_functable();
 
 struct ScopeList_ *enter_new_scope();

@@ -79,35 +79,35 @@ ID          {letter}({digit}|{letter})*
              else yycolumn++;
              //貌似没有必要维护 yycolumn
             }
-{SEMI}      {yylval.type_node=creat_node(lexother,yylineno,0,0,"SEMI");return SEMI;}
-{COMMA}     {yylval.type_node=creat_node(lexother,yylineno,0,0,"COMMA");return COMMA;}
-{ASSIGNOP}  {yylval.type_node=creat_node(lexother,yylineno,0,0,"ASSIGNOP");return ASSIGNOP;}
-{RELOP}     {yylval.type_node=creat_node(lexother,yylineno,0,0,"RELOP");return RELOP;}
-{PLUS}      {yylval.type_node=creat_node(lexother,yylineno,0,0,"PLUS");return PLUS;}
-{MINUS}     {yylval.type_node=creat_node(lexother,yylineno,0,0,"MINUS");return MINUS;}
-{STAR}      {yylval.type_node=creat_node(lexother,yylineno,0,0,"STAR");return STAR;}
-{DIV}       {yylval.type_node=creat_node(lexother,yylineno,0,0,"DIV");return DIV;}
-{AND}       {yylval.type_node=creat_node(lexother,yylineno,0,0,"AND");return AND;}
-{OR}        {yylval.type_node=creat_node(lexother,yylineno,0,0,"OR");return OR;}
-{DOT}       {yylval.type_node=creat_node(lexother,yylineno,0,0,"DOT");return DOT;}
-{NOT}       {yylval.type_node=creat_node(lexother,yylineno,0,0,"NOT");return NOT;}
-{TYPE}      {yylval.type_node=creat_node(lextype,yylineno,0,0,yytext);return TYPE;}
-{LP}        {yylval.type_node=creat_node(lexother,yylineno,0,0,"LP");return LP;}
-{RP}        {yylval.type_node=creat_node(lexother,yylineno,0,0,"RP");return RP;}
-{LB}        {yylval.type_node=creat_node(lexother,yylineno,0,0,"LB");return LB;}
-{RB}        {yylval.type_node=creat_node(lexother,yylineno,0,0,"RB");return RB;}
-{LC}        {yylval.type_node=creat_node(lexother,yylineno,0,0,"LC");return LC;}
-{RC}        {yylval.type_node=creat_node(lexother,yylineno,0,0,"RC");return RC;}
-{STRUCT}    {yylval.type_node=creat_node(lexother,yylineno,0,0,"STRUCT");return STRUCT;}
-{RETURN}    {yylval.type_node=creat_node(lexother,yylineno,0,0,"RETURN");return RETURN;}
-{IF}        {yylval.type_node=creat_node(lexother,yylineno,0,0,"IF");return IF;}
-{ELSE}      {yylval.type_node=creat_node(lexother,yylineno,0,0,"ELSE");return ELSE;}
-{WHILE}     {yylval.type_node=creat_node(lexother,yylineno,0,0,"WHILE");return WHILE;}
-{INT}       {yylval.type_node=creat_node(lexint,0,strtol(yytext,NULL,0),0,0);return INT;}//a good function strtol(const char* nptr,char** endptr,int base);endptr为NULL则转换完整字符串、base为0则根据形式决定进制
-{INT_E}     {yylval.type_node=creat_node(lexint,yylineno,0,0,0);Lexerror=1;if(check(yylineno))fprintf(stdout,"Error type A at Line %d: Illegal INT: \'%s\'\n",yylineno, yytext);return INT;}
-{FLOAT}     {yylval.type_node=creat_node(lexfloat,0,0,atof(yytext),0);return FLOAT;}
-{FLOAT_E}   {yylval.type_node=creat_node(lexfloat,yylineno,0,0,0);Lexerror=1;if(check(yylineno))fprintf(stdout,"Error type A at Line %d: Illegal FLOAT: \'%s\'\n",yylineno, yytext);return FLOAT;}
-{ID}        {yylval.type_node=creat_node(lexid,yylineno,0,0,yytext);return ID;}
+{SEMI}      {yylval.type_node=creat_node(lexother,yylineno,0,0,NULL,"SEMI");return SEMI;}
+{COMMA}     {yylval.type_node=creat_node(lexother,yylineno,0,0,NULL,"COMMA");return COMMA;}
+{ASSIGNOP}  {yylval.type_node=creat_node(lexother,yylineno,0,0,NULL,"ASSIGNOP");return ASSIGNOP;}
+{RELOP}     {yylval.type_node=creat_node(lexother,yylineno,0,0,yytext,"RELOP");return RELOP;}
+{PLUS}      {yylval.type_node=creat_node(lexother,yylineno,0,0,NULL,"PLUS");return PLUS;}
+{MINUS}     {yylval.type_node=creat_node(lexother,yylineno,0,0,NULL,"MINUS");return MINUS;}
+{STAR}      {yylval.type_node=creat_node(lexother,yylineno,0,0,NULL,"STAR");return STAR;}
+{DIV}       {yylval.type_node=creat_node(lexother,yylineno,0,0,NULL,"DIV");return DIV;}
+{AND}       {yylval.type_node=creat_node(lexother,yylineno,0,0,NULL,"AND");return AND;}
+{OR}        {yylval.type_node=creat_node(lexother,yylineno,0,0,NULL,"OR");return OR;}
+{DOT}       {yylval.type_node=creat_node(lexother,yylineno,0,0,NULL,"DOT");return DOT;}
+{NOT}       {yylval.type_node=creat_node(lexother,yylineno,0,0,NULL,"NOT");return NOT;}
+{TYPE}      {yylval.type_node=creat_node(lextype,yylineno,0,0,yytext,"TYPE");return TYPE;}
+{LP}        {yylval.type_node=creat_node(lexother,yylineno,0,0,NULL,"LP");return LP;}
+{RP}        {yylval.type_node=creat_node(lexother,yylineno,0,0,NULL,"RP");return RP;}
+{LB}        {yylval.type_node=creat_node(lexother,yylineno,0,0,NULL,"LB");return LB;}
+{RB}        {yylval.type_node=creat_node(lexother,yylineno,0,0,NULL,"RB");return RB;}
+{LC}        {yylval.type_node=creat_node(lexother,yylineno,0,0,NULL,"LC");return LC;}
+{RC}        {yylval.type_node=creat_node(lexother,yylineno,0,0,NULL,"RC");return RC;}
+{STRUCT}    {yylval.type_node=creat_node(lexother,yylineno,0,0,NULL,"STRUCT");return STRUCT;}
+{RETURN}    {yylval.type_node=creat_node(lexother,yylineno,0,0,NULL,"RETURN");return RETURN;}
+{IF}        {yylval.type_node=creat_node(lexother,yylineno,0,0,NULL,"IF");return IF;}
+{ELSE}      {yylval.type_node=creat_node(lexother,yylineno,0,0,NULL,"ELSE");return ELSE;}
+{WHILE}     {yylval.type_node=creat_node(lexother,yylineno,0,0,NULL,"WHILE");return WHILE;}
+{INT}       {yylval.type_node=creat_node(lexint,0,strtol(yytext,NULL,0),0,NULL,"INT");return INT;}//a good function strtol(const char* nptr,char** endptr,int base);endptr为NULL则转换完整字符串、base为0则根据形式决定进制
+{INT_E}     {yylval.type_node=creat_node(lexint,yylineno,0,0,NULL,"INT");Lexerror=1;if(check(yylineno))fprintf(stdout,"Error type A at Line %d: Illegal INT: \'%s\'\n",yylineno, yytext);return INT;}
+{FLOAT}     {yylval.type_node=creat_node(lexfloat,0,0,atof(yytext),NULL,"FLOAT");return FLOAT;}
+{FLOAT_E}   {yylval.type_node=creat_node(lexfloat,yylineno,0,0,NULL,"FLOAT");Lexerror=1;if(check(yylineno))fprintf(stdout,"Error type A at Line %d: Illegal FLOAT: \'%s\'\n",yylineno, yytext);return FLOAT;}
+{ID}        {yylval.type_node=creat_node(lexid,yylineno,0,0,yytext,"ID");return ID;}
 .           {Lexerror=1;if(check(yylineno))fprintf(stdout,"Error type A at Line %d: Mysterious characters \'%s\'\n",yylineno, yytext);}
 
 %%

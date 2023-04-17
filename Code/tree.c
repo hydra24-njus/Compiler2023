@@ -1,12 +1,16 @@
 #include "tree.h"
-Node *creat_node(unsigned node_type,int lineno,int ii,float if_,char *ic){
+Node *creat_node(unsigned node_type,int lineno,int ii,float if_,char *ic,char *ni){
     Node *new_node=malloc(sizeof(Node));
     new_node->child     =      NULL;
     new_node->next      =      NULL;
     new_node->node_type = node_type;
     new_node->lineno    =    lineno;
     char *nstr=NULL;
-    if(node_type==lexid||node_type==lextype||node_type==lexother||node_type==synunit){
+    char *nstr2=NULL;
+    nstr2=malloc((strlen(ni)+1)*sizeof(char));
+    strcpy(nstr2,ni);
+    new_node->node_info=nstr2;
+    if(ic!=NULL){
         nstr=malloc((strlen(ic) + 1) * sizeof(char));
         strcpy(nstr,ic);
     }

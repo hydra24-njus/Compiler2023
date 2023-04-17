@@ -1,16 +1,17 @@
 #include "semantic.h"
 #include "debug.h"
-#include <stdarg.h>
+#include "ir.h"
 
-
-static struct Type_ type_int={
+struct Type_ type_int={
     .kind=BASIC,
     .u.basic=INT
 };
-static struct Type_ type_float={
+struct Type_ type_float={
     .kind=BASIC,
     .u.basic=FLOAT
 };
+const char* readname="read";
+const char* writename="write";
 int semantic_error=0;
 static char* error_msg[20]={
     "unhandled errors",//0 eg. if(0.5)Stmt
@@ -38,6 +39,7 @@ static char* type_name[5]={"int","float","array","struct","function"};
 extern struct FunctionList_ *functable;
 int _depth=0;
 int _struct_depth=0;
+
 int gencheck(Node *root,int cnt,...){
     va_list ap;
     va_start(ap,cnt);
@@ -53,36 +55,8 @@ int gencheck(Node *root,int cnt,...){
             child=child->next;
             continue;
         }
-        else if(strcmp("ID",name)==0){
-            if(child->node_type!=lexid){
-                va_end(ap);
-                return 0;//拒绝
-            }
-        }
-        else if(strcmp("TYPE",name)==0){
-            if(child->node_type!=lextype){
-                va_end(ap);
-                return 0;//拒绝
-            }
-        }
-        else if(strcmp("INT",name)==0){
-            if(child->node_type!=lexint){
-                va_end(ap);
-                return 0;//拒绝
-            }
-        }
-        else if(strcmp("FLOAT",name)==0){
-            if(child->node_type!=lexfloat){
-                va_end(ap);
-                return 0;//拒绝
-            }
-        }
         else{
-            if(child->node_type!=synunit&&child->node_type!=lexid&&child->node_type!=lexother){
-                va_end(ap);
-                return 0;
-            }
-            if(strcmp(name,child->info_char)!=0){
+            if(strcmp(name,child->node_info)!=0){
                 va_end(ap);
                 return 0;
             }
@@ -108,14 +82,38 @@ void funcheck(){
     }
 }
 
+int io_init(){
+    Type readfun=malloc(sizeof(struct Type_));
+    readfun->kind=FUNCTION_T;
+    readfun->u.function.returntype=&type_int;
+    readfun->u.function.paramscnt=0;
+    readfun->u.function.isdef=1;
+    readfun->u.function.paramlist=NULL;
+    insert_node(readfun,readname,0,FUNCTION,NULL);
+
+    Type writefun=malloc(sizeof(struct Type_));
+    writefun->kind=FUNCTION_T;
+    writefun->u.function.returntype=&type_int;
+    writefun->u.function.paramscnt=1;
+    writefun->u.function.isdef=1;
+    FieldList param=malloc(sizeof(struct FieldList_));
+    param->name=NULL;
+    param->type=&type_int;
+    param->tail=NULL;
+    writefun->u.function.paramlist=param;
+    insert_node(writefun,writename,0,FUNCTION,NULL);
+    return 0;
+}
+
 int semantic(Node *root){
     if(root==NULL){
         return 1;
     }
-    if(strcmp(root->info_char,"Program")!=0){
+    if(strcmp(root->node_info,"Program")!=0){
         return 1;
     }
     symboltable_init();
+    io_init();
     Program_analyse(root);
     funcheck();
     delete_functable();

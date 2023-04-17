@@ -1,9 +1,10 @@
 #ifndef __SEMANTIC_H__
 #define __SEMANTIC_H__
 
+#include <stdarg.h>
 #include "symbol_table.h"
 #include "tree.h"
-
+#include "debug.h"
 
 int semantic(Node *root);
 void Program_analyse(Node *root);
@@ -30,4 +31,7 @@ FieldList DefList_struct_analyse(Node *node);
 FieldList Def_struct_analyse(Node *node);
 FieldList DecList_struct_analyse(Node *node,Type type);
 FieldList Dec_struct_analyse(Node *node,Type type);
+
+int gencheck(Node *root,int cnt,...);
+
 #endif

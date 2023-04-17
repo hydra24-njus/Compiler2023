@@ -6,7 +6,7 @@ struct SymbolNode_ *structable[STRUCT_SIZE];
 struct FunctionList_ *functable;
 struct ScopeList_ *scopelist;
 
-int hash(char *name,int size){
+int hash(const char *name,int size){
     unsigned int val=0,i;
     for(;*name;++name){
         val=(val<<2)+*name;
@@ -32,7 +32,7 @@ void symboltable_init(){
 }
 
 //全局符号表
-void insert_node(Type type,char *name,int deep,int kind,ScopeList scope){
+void insert_node(Type type,const char *name,int deep,int kind,ScopeList scope){
     int index=hash(name,TABLE_SIZE);
     struct SymbolNode_ *node=malloc(sizeof(struct SymbolNode_));
     node->name=name;
@@ -48,7 +48,7 @@ void insert_node(Type type,char *name,int deep,int kind,ScopeList scope){
     }
 }
 
-Type query_symbol(char *name,int type,int deep){
+Type query_symbol(const char *name,int type,int deep){
     //type=0:只查当前层 是否重定义
     //type=1:查本层及更浅的层
     int index=hash(name,TABLE_SIZE);
@@ -98,7 +98,7 @@ void delete_node(struct SymbolNode_ *node){
 
 
 //结构体内部作用域的符号表
-void insert_node_struct(Type type,char *name,int deep){
+void insert_node_struct(Type type,const char *name,int deep){
     int index=hash(name,STRUCT_SIZE);
     struct SymbolNode_ *node=malloc(sizeof(struct SymbolNode_));
     node->name=name;
@@ -110,7 +110,7 @@ void insert_node_struct(Type type,char *name,int deep){
 
 }
 
-Type query_symbol_struct(char *name,int deep){
+Type query_symbol_struct(const char *name,int deep){
     int index=hash(name,STRUCT_SIZE);
     sNode ret=NULL;
     for(sNode i=structable[index]->next;i;i=i->next){
@@ -142,7 +142,7 @@ void delete_struct_table(){
 }
 
 //函数定义的全局链表
-void insert_function(int lineno,char *name){
+void insert_function(int lineno,const char *name){
     struct FunctionList_ *node=malloc(sizeof(struct FunctionList_));
     node->lineno=lineno;
     node->name=name;
@@ -151,7 +151,7 @@ void insert_function(int lineno,char *name){
     return;
 }
 
-void delete_function(char *name){
+void delete_function(const char *name){
     struct FunctionList_ *prev=functable;
     struct FunctionList_ *ret=functable->next;
     while(ret!=NULL){
