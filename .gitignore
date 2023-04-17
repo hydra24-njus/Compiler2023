@@ -6,3 +6,4 @@ Code/parser
 Code/syntax.tab.h
 Code/*.o
 Code/*.output
+Code/*.ir

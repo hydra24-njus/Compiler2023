@@ -2,11 +2,21 @@
 #include "debug.h"
 #include "semantic.h"
 
-static _var_cnt=0;
-static _tmp_cnt=0;
+static int _var_cnt=0;
+static int _tmp_cnt=0;
 
+__attribute__((constructor)) void ir_init(){
+    //printf("ir init\n\n");
+    return;
+}
 
+void trans_FunDec(Node *root){
 
+}
+
+void trans_Stmt(Node *root){
+
+}
 
 void trans_Exp(Node *root){
     if(gencheck(root,1,"INT")){
@@ -51,5 +61,5 @@ void trans_Exp(Node *root){
     else{
         debug("error in trans_Exp\n");
     }
-    return NULL;
+    return;
 }

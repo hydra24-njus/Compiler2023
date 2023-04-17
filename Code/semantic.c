@@ -82,7 +82,8 @@ void funcheck(){
     }
 }
 
-int io_init(){
+__attribute__((constructor)) int io_init(){
+    //printf("io init\n\n");
     Type readfun=malloc(sizeof(struct Type_));
     readfun->kind=FUNCTION_T;
     readfun->u.function.returntype=&type_int;
@@ -112,8 +113,8 @@ int semantic(Node *root){
     if(strcmp(root->node_info,"Program")!=0){
         return 1;
     }
-    symboltable_init();
-    io_init();
+    //symboltable_init();
+    //io_init();
     Program_analyse(root);
     funcheck();
     delete_functable();

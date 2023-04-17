@@ -16,7 +16,8 @@ int hash(const char *name,int size){
 }
 
 //初始化用
-void symboltable_init(){
+__attribute__((constructor)) void symboltable_init(){
+    //printf("symboltable init\n\n");
     static struct SymbolNode_ tab[TABLE_SIZE];
     for(int i=0;i<TABLE_SIZE;i++){
         hashtable[i]=&(tab[i]);
