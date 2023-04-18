@@ -635,17 +635,57 @@ void Stmt_analyse(Node *node,Type type,ScopeList scope){
         if(!typecheck(etype,&type_int)){
             //error_output(0,node->lineno,"");
         }
+        //ir.c
+        Operand lable1=new_lable(),lable2=new_lable();
+        trans_Cond(node->child->next->next,lable1,lable2);
+        InterCodes code1=new_intercode(IR_LABEL);
+        free(code1->code->u.unaryop.unary);
+        code1->code->u.unaryop.unary=lable1;
+        insert_code(code1);
+
         Stmt_analyse(node->child->next->next->next->next,type,scope);
+
+        //ir.c
+        code1=new_intercode(IR_LABEL);
+        free(code1->code->u.unaryop.unary);
+        code1->code->u.unaryop.unary=lable2;
+        insert_code(code1);
     }
     else if(gencheck(node,7,"IF","LP","Exp","RP","Stmt","ELSE","Stmt")){
         debug("Stmt -> IF LP Exp RP Stmt ELSE Stmt\n");
         Type etype=Exp_analyse(node->child->next->next);
         if(!typecheck(etype,&type_int)){
             //error_output(0,node->lineno,"");
-
         }
-        Stmt_analyse(node->child->next->next->next->next,type,scope);
+
+        //ir.c
+        Operand lable1=new_lable(),lable2=new_lable(),lable3=new_lable();
+        trans_Cond(node->child->next->next,lable1,lable2);//code1
+        InterCodes code1=new_intercode(IR_LABEL);
+        free(code1->code->u.unaryop.unary);
+        code1->code->u.unaryop.unary=lable1;
+        insert_code(code1);//LABEL lable1
+
+
+        Stmt_analyse(node->child->next->next->next->next,type,scope);//code2
+
+        //ir.c
+        code1=new_intercode(IR_GOTO);
+        free(code1->code->u.unaryop.unary);
+        code1->code->u.unaryop.unary=lable3;
+        insert_code(code1);//GOTO lable3
+        code1=new_intercode(IR_LABEL);
+        free(code1->code->u.unaryop.unary);
+        code1->code->u.unaryop.unary=lable2;
+        insert_code(code1);//LABEL lable2
+
         Stmt_analyse(node->child->next->next->next->next->next->next,type,scope);
+    
+        //ir.c
+        code1=new_intercode(IR_LABEL);
+        free(code1->code->u.unaryop.unary);
+        code1->code->u.unaryop.unary=lable3;
+        insert_code(code1);//LABEL lable3
     }
     else if(gencheck(node,5,"WHILE","LP","Exp","RP","Stmt")){
         debug("Stmt -> WHILE LP Exp RP Stmt\n");

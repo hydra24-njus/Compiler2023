@@ -5,12 +5,14 @@
 
 typedef struct Operand_* Operand;
 struct Operand_ {
-    enum { IR_VARIABLE, IR_CONSTANT, IR_ADDRESS, IR_FUNCNAME, IR_TMPOP } kind;
+    enum { IR_VARIABLE, IR_CONSTANT, IR_ADDRESS, IR_FUNCNAME, IR_TMPOP, IR_LABELOP, IR_RELOP } kind;
     union {
         char *varname;
         char *funcname;
         int value;
         int tmpno;
+        int lableno;
+        char *relopid;
     } u;
 };
 
@@ -48,14 +50,16 @@ struct InterCodes_ {
     InterCodes prev, next; 
 };
 
+Operand new_lable();
 InterCodes new_intercode(int kind);
 void insert_code(InterCodes node);
 
 void trans_FunDec(Node *root);
-void trans_Stmt(Node *root,int kind);
 
 
 Operand trans_Exp(Node *root);
+InterCodes trans_args(Node *root);
+void trans_Cond(Node *root,Operand lable1,Operand lable2);
 
 void print_ir(FILE *fp);
 
