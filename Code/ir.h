@@ -2,10 +2,12 @@
 #define __IR_H__
 
 #include "tree.h"
-
+typedef struct Type_* Type;
 typedef struct Operand_* Operand;
 struct Operand_ {
-    enum { IR_VARIABLE, IR_CONSTANT, IR_ADDRESS, IR_FUNCNAME, IR_TMPOP, IR_LABELOP, IR_RELOP } kind;
+    enum { IR_VARIABLE, IR_CONSTANT, IR_FUNCNAME, IR_TMPOP, IR_LABELOP, IR_RELOP } kind;
+    enum { IR_ADDR=-1, IR_NOMAL, IR_POINT,} access;
+    int is_addr;
     union {
         char *varname;
         char *funcname;
@@ -51,8 +53,10 @@ struct InterCodes_ {
 };
 
 Operand new_lable();
+Operand new_operand(int kind);
 InterCodes new_intercode(int kind);
 void insert_code(InterCodes node);
+int getsize(Type type);
 
 void trans_FunDec(Node *root);
 

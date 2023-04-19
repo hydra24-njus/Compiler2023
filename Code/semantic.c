@@ -1,6 +1,7 @@
 #include "semantic.h"
 #include "debug.h"
 #include "ir.h"
+#include <assert.h>
 
 struct Type_ type_int={
     .kind=BASIC,
@@ -174,7 +175,7 @@ void ExtDef_analyse(Node *root){
     }
     else{
         debug("error in ExtDef_analyse\n");
-        exit(1);
+        assert(0);
     }
 }
 
@@ -206,7 +207,7 @@ void ExtDecList_analyse(Node *node,Type type){
     }
     else{
         debug("error in ExtDecList_analyse\n");
-        exit(1);
+        assert(0);
     }
 }
 
@@ -222,7 +223,7 @@ Type Specifier_analyse(Node *node){
         }
         else{
             debug("should not reach here(Specifier basic type)\n");
-            exit(1);
+            assert(0);
         }
     }
     else if(gencheck(node,1,"StructSpecifier")){
@@ -318,7 +319,7 @@ Type StructSpecifier_analyse(Node *node){
     }
     else{
         debug("error in StructSpecifier_analyse(%d)\n",node->lineno);
-        exit(1);
+        assert(0);
     }
     return NULL;
 }
@@ -396,7 +397,7 @@ FieldList Dec_struct_analyse(Node *node,Type type){
         if(!typecheck(type,field->type)){
             //TODO:报错
             debug("should not reach here 4\n");
-            exit(1);
+            assert(0);
         }
         if(query_symbol_struct(field->name,_struct_depth)!=NULL){
             error_output(15,node->child->lineno,field->name);
@@ -416,24 +417,38 @@ FieldList VarDec_analyse(Node *node,Type type){
     if(gencheck(node,1,"ID")){
         debug("VarDec -> ID\n");
         FieldList field=malloc(sizeof(struct FieldList_));
+        memset(field,0,sizeof(struct FieldList_));
         field->name=node->child->info_char;
         field->type=type;
         return field;
     }
     else if(gencheck(node,4,"VarDec","LB","INT","RB")){
         debug("VarDec -> VarDec LB INT RB\n");
-        Node *child2=node->child->next->next;
         FieldList field=VarDec_analyse(node->child,type);
+
         Type type=malloc(sizeof(struct Type_));
+        memset(type,0,sizeof(struct Type_));
         type->kind=ARRAY;
-        type->u.array.elem=field->type;
-        type->u.array.size=child2->info_int;
-        field->type=type;
+        type->u.array.size=node->child->next->next->info_int;
+
+        if(field->type->kind!=ARRAY){
+            type->u.array.elem=field->type;
+            field->type=type;
+        }
+        else{
+            Type elemprev=field->type;
+            while(elemprev->u.array.elem->kind==ARRAY){
+                elemprev=elemprev->u.array.elem;
+            }
+            type->u.array.elem=elemprev->u.array.elem;
+            elemprev->u.array.elem=type;
+        }
+
         return field;
     }
     else{
         debug("error int VarDec_analyse\n");
-        exit(1);
+        assert(0);
     }
     return NULL;
 }
@@ -453,7 +468,7 @@ void FunDec_analyse(Node *node,Type type,int def,ScopeList scope){
         while(tmp!=NULL){
             cnt++;
             if(query_symbol(tmp->name,0,_depth)==NULL){
-                insert_node(tmp->type,tmp->name,_depth,VARIABLE,scope);
+                insert_node_asaddr(tmp->type,tmp->name,_depth,VARIABLE,scope);
             }
             else{
                 error_output(3,node->child->next->next->lineno,tmp->name);
@@ -625,7 +640,6 @@ void Stmt_analyse(Node *node,Type type,ScopeList scope){
         //ir.c
         Operand op=trans_Exp(node->child->next);
         InterCodes ret=new_intercode(IR_RETURN);
-        free(ret->code->u.unaryop.unary);
         ret->code->u.unaryop.unary=op;
         insert_code(ret);
     }
@@ -639,7 +653,6 @@ void Stmt_analyse(Node *node,Type type,ScopeList scope){
         Operand lable1=new_lable(),lable2=new_lable();
         trans_Cond(node->child->next->next,lable1,lable2);
         InterCodes code1=new_intercode(IR_LABEL);
-        free(code1->code->u.unaryop.unary);
         code1->code->u.unaryop.unary=lable1;
         insert_code(code1);
 
@@ -647,7 +660,6 @@ void Stmt_analyse(Node *node,Type type,ScopeList scope){
 
         //ir.c
         code1=new_intercode(IR_LABEL);
-        free(code1->code->u.unaryop.unary);
         code1->code->u.unaryop.unary=lable2;
         insert_code(code1);
     }
@@ -662,7 +674,6 @@ void Stmt_analyse(Node *node,Type type,ScopeList scope){
         Operand lable1=new_lable(),lable2=new_lable(),lable3=new_lable();
         trans_Cond(node->child->next->next,lable1,lable2);//code1
         InterCodes code1=new_intercode(IR_LABEL);
-        free(code1->code->u.unaryop.unary);
         code1->code->u.unaryop.unary=lable1;
         insert_code(code1);//LABEL lable1
 
@@ -671,11 +682,9 @@ void Stmt_analyse(Node *node,Type type,ScopeList scope){
 
         //ir.c
         code1=new_intercode(IR_GOTO);
-        free(code1->code->u.unaryop.unary);
         code1->code->u.unaryop.unary=lable3;
         insert_code(code1);//GOTO lable3
         code1=new_intercode(IR_LABEL);
-        free(code1->code->u.unaryop.unary);
         code1->code->u.unaryop.unary=lable2;
         insert_code(code1);//LABEL lable2
 
@@ -683,7 +692,6 @@ void Stmt_analyse(Node *node,Type type,ScopeList scope){
     
         //ir.c
         code1=new_intercode(IR_LABEL);
-        free(code1->code->u.unaryop.unary);
         code1->code->u.unaryop.unary=lable3;
         insert_code(code1);//LABEL lable3
     }
@@ -693,7 +701,29 @@ void Stmt_analyse(Node *node,Type type,ScopeList scope){
         if(!typecheck(etype,&type_int)){
             //error_output(0,node->lineno,"");
         }
-        Stmt_analyse(node->child->next->next->next->next,type,scope);
+
+        //ir.c
+        Operand lable1=new_lable(),lable2=new_lable(),lable3=new_lable();
+        InterCodes code1=new_intercode(IR_LABEL);
+        code1->code->u.unaryop.unary=lable1;
+        insert_code(code1);//LABEL lable1
+
+        trans_Cond(node->child->next->next,lable2,lable3);//code1
+        
+        code1=new_intercode(IR_LABEL);
+        code1->code->u.unaryop.unary=lable2;
+        insert_code(code1);//LABEL lable2
+
+        Stmt_analyse(node->child->next->next->next->next,type,scope);//code2
+
+        //ir.c
+        code1=new_intercode(IR_GOTO);
+        code1->code->u.unaryop.unary=lable1;
+        insert_code(code1);//GOTO lable1
+
+        code1=new_intercode(IR_LABEL);
+        code1->code->u.unaryop.unary=lable3;
+        insert_code(code1);//LABEL lable3
     }
     else{
         debug("error in Stmt_analyse\n");
@@ -754,12 +784,24 @@ void Dec_analyse(Node *node,Type type,ScopeList scope){
         }
         else{
             insert_node(field->type,field->name,_depth,VARIABLE,scope);
-            free(field);
+
+            //ir.c
+            Type vartype=field->type;
+            int varsize=getsize(vartype);
+            if(varsize!=4){
+                InterCodes code=new_intercode(IR_DEC);
+                code->code->u.assign.left=new_operand(IR_VARIABLE);
+                code->code->u.assign.left->u.varname=field->name;
+                code->code->u.assign.right=new_operand(IR_CONSTANT);
+                code->code->u.assign.right->u.value=varsize;
+                insert_code(code);
+            }
         }
     }
     else if(gencheck(node,3,"VarDec","ASSIGNOP","Exp")){
         debug("Dec -> VarDec ASSIGNOP Exp\n");
         FieldList field=VarDec_analyse(node->child,type);
+        char* vname=field->name;
         Type type=Exp_analyse(node->child->next->next);
         if(!typecheck(type,field->type)){
             error_output(5,node->child->lineno,"\40");
@@ -769,8 +811,14 @@ void Dec_analyse(Node *node,Type type,ScopeList scope){
         }
         else{
             insert_node(field->type,field->name,_depth,VARIABLE,scope);
-            free(field);
         }
+        //ir.c
+        Operand t0=trans_Exp(node->child->next->next);
+        InterCodes code0=new_intercode(IR_ASSIGN);
+        code0->code->u.assign.right=t0;
+        code0->code->u.assign.left=new_operand(IR_VARIABLE);
+        code0->code->u.assign.left->u.varname=vname;
+        insert_code(code0);
     }
     else{
         debug("error in Dec_analyse\n");
@@ -782,10 +830,12 @@ Type Exp_analyse(Node *node){
     Node *child1=node->child;
     if(gencheck(node,1,"INT")){
         debug("Exp -> INT\n");
+        node->type=&type_int;
         return &type_int;
     }
     else if(gencheck(node,1,"FLOAT")){
         debug("Exp -> FLOAT\n");
+        node->type=&type_float;
         return &type_float;
     }
     else if(gencheck(node,1,"ID")){
@@ -795,16 +845,19 @@ Type Exp_analyse(Node *node){
             error_output(1,node->child->lineno,node->child->info_char);
         }
         else{
+            node->type=type;
             return type;
         }
     }
     else if(gencheck(node,2,"MINUS","Exp")){
         debug("Exp -> MINUS Exp\n");
-        return Exp_analyse(child1->next);
+        node->type=Exp_analyse(child1->next);
+        return node->type;
     }
     else if(gencheck(node,2,"NOT","Exp")){
         debug("Exp -> NOT Exp\n");
-        return Exp_analyse(child1->next);
+        node->type=Exp_analyse(child1->next);
+        return node->type;
     }
     else if(gencheck(node,3,"Exp","ASSIGNOP","Exp")){
         debug("Exp -> Exp ASSIGNOP Exp\n");
@@ -824,6 +877,7 @@ Type Exp_analyse(Node *node){
             error_output(6,node->child->next->lineno,"\40");
         }
         if(typecheck(type1,type2)){
+            node->type=type1;
             return type1;
         }
         else{
@@ -840,6 +894,7 @@ Type Exp_analyse(Node *node){
             //TODO:区分赋值和其它运算
             error_output(7,node->child->lineno,"\40");//TODO:type
         }
+        node->type=&type_int;
         return &type_int;
     }
     else if(gencheck(node,3,"Exp","OP","Exp")){
@@ -847,6 +902,7 @@ Type Exp_analyse(Node *node){
         Type type1=Exp_analyse(child1);
         Type type2=Exp_analyse(child1->next->next);
         if(typecheck(type1,type2)){
+            node->type=type1;
             return type1;
         }
         else{
@@ -865,6 +921,7 @@ Type Exp_analyse(Node *node){
         FieldList field=type1->u.structure;
         while(field!=NULL){
             if(strcmp(id,field->name)==0){
+                node->type=field->type;
                 return field->type;
             }
             field=field->tail;
@@ -881,17 +938,20 @@ Type Exp_analyse(Node *node){
             return NULL;
         }
         if(typecheck(type2,&type_int)){
+            node->type=type1->u.array.elem;
             return type1->u.array.elem;
         }
         else{
             //报错
             error_output(12,node->child->lineno,"\40");//TODO:
+            node->type=type1->u.array.elem;
             return type1->u.array.elem;
         }
     }
     else if(gencheck(node,3,"LP","Exp","RP")){
         debug("Exp -> LP Exp RP\n");
-        return Exp_analyse(child1->next);
+        node->type=Exp_analyse(child1->next);
+        return node->type;
     }
     else if(gencheck(node,3,"ID","LP","RP")){
         debug("Exp -> ID LP RP\n");
@@ -905,11 +965,13 @@ Type Exp_analyse(Node *node){
             return NULL;
         }
         if(type->u.function.paramscnt==0){
-            return type->u.function.returntype;
+            node->type=type->u.function.returntype;
+            return node->type;
         }
         else{
             error_output(9,node->lineno,child1->info_char);
-            return type->u.function.returntype;
+            node->type=type->u.function.returntype;
+            return node->type;
         }
     }
     else if(gencheck(node,4,"ID","LP","Args","RP")){
@@ -925,11 +987,13 @@ Type Exp_analyse(Node *node){
         }
         FieldList head=type->u.function.paramlist;
         if(Args_analyse(child1->next->next,head)==0){
-            return type->u.function.returntype;
+            node->type=type->u.function.returntype;
+            return node->type;
         }
         else{
             error_output(9,node->lineno,child1->info_char);
-            return type->u.function.returntype;
+            node->type=type->u.function.returntype;
+            return node->type;
         }
     }
     else{

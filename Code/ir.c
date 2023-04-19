@@ -1,10 +1,10 @@
 #include "ir.h"
 #include "debug.h"
 #include "semantic.h"
-
+#include <assert.h>
 static int _lable_cnt=0;
 static int _tmp_cnt=0;
-
+extern int _depth;
 InterCodes ir_head=NULL,ir_tail=NULL;
 
 __attribute__((constructor)) void ir_init(){
@@ -30,6 +30,8 @@ void insert_code(InterCodes node){
 }
 
 void print_op(FILE *fp,Operand op){
+    if(op->access==IR_ADDR&&!op->is_addr)fprintf(fp,"&");
+    else if(op->access==IR_POINT)fprintf(fp,"*");
     switch(op->kind){
         case IR_CONSTANT:
                         fprintf(fp,"#%d",op->u.value);
@@ -50,7 +52,7 @@ void print_op(FILE *fp,Operand op){
         case IR_LABELOP:
                         fprintf(fp,"lable%d",op->u.lableno);
                         break;
-        default:        printf("in op:%d\n",op->kind);exit(1);break;
+        default:        printf("in op:%d\n",op->kind);assert(0);break;
     }
 }
 
@@ -68,6 +70,8 @@ void print_ir(FILE *fp){
             case IR_RETURN:     fprintf(fp,"RETURN ");print_op(fp,ic->u.unaryop.unary);fprintf(fp," \n");
                                 break;
             case IR_ASSIGN:     print_op(fp,ic->u.assign.left);fprintf(fp," := ");print_op(fp,ic->u.assign.right);fprintf(fp," \n");
+                                break;
+            case IR_DEC:        fprintf(fp,"DEC ");print_op(fp,ic->u.assign.left);fprintf(fp," %d \n",ic->u.assign.right->u.value);
                                 break;
             case IR_CALL:       print_op(fp,ic->u.assign.left);fprintf(fp," := CALL ");print_op(fp,ic->u.assign.right);fprintf(fp," \n");
                                 break;
@@ -102,7 +106,7 @@ void print_ir(FILE *fp){
                                 print_op(fp,ic->u.binop.op1);fprintf(fp," / ");
                                 print_op(fp,ic->u.binop.op2);fprintf(fp," \n");
                                 break;
-            default:            printf("in code:%d\n",ic->kind);exit(1);break;
+            default:            printf("in code:%d\n",ic->kind);assert(0);break;
         }
         tmp=tmp->next;
     }
@@ -111,12 +115,15 @@ void print_ir(FILE *fp){
 
 Operand new_operand(int kind){
     Operand ret=malloc(sizeof(struct Operand_));
+    memset(ret,0,sizeof(struct Operand_));
     ret->kind=kind;
+    ret->access=0;
     return ret;
 }
 
 Operand new_tmpop(){
     Operand ret=malloc(sizeof(struct Operand_));
+    memset(ret,0,sizeof(struct Operand_));
     ret->kind=IR_TMPOP;
     ret->u.tmpno=++_tmp_cnt;
     return ret;
@@ -130,31 +137,11 @@ Operand get_relop(const char* name){
 
 InterCodes new_intercode(int kind){
     InterCodes node=malloc(sizeof(struct InterCodes_));
+    memset(node,0,sizeof(struct InterCodes_));
     node->code=malloc(sizeof(struct InterCode_));
+    memset(node->code,0,sizeof(struct InterCode_));
     InterCode code=node->code;
     code->kind=kind;
-    if(kind<=IR_WRITE){
-        //单目
-        code->u.unaryop.unary=malloc(sizeof(struct Operand_));
-    }
-    else if(kind<=IR_DEC){
-        //双目
-        code->u.assign.right =malloc(sizeof(struct Operand_));
-        code->u.assign.left  =malloc(sizeof(struct Operand_));
-    }
-    else if(kind<=IR_DIV){
-        //三目
-        code->u.binop.result =malloc(sizeof(struct Operand_));
-        code->u.binop.op1    =malloc(sizeof(struct Operand_));
-        code->u.binop.op2    =malloc(sizeof(struct Operand_));
-    }
-    else if(kind==IR_IFGOTO){
-        //四目
-        code->u.gotop.op1    =malloc(sizeof(struct Operand_));
-        code->u.gotop.op2    =malloc(sizeof(struct Operand_));
-        code->u.gotop.relop  =malloc(sizeof(struct Operand_));
-        code->u.gotop.lable  =malloc(sizeof(struct Operand_));
-    }
     return node;
 }
 
@@ -165,22 +152,42 @@ Operand new_lable(){
     return lab;
 }
 
+int getsize(Type type){
+    if(type->kind==BASIC){
+        return 4;
+    }
+    else if(type->kind==ARRAY){
+        return type->u.array.size*getsize(type->u.array.elem);
+    }
+    else if(type->kind==STRUCTURE){
+        int ret=0;
+        FieldList tmp=type->u.structure;
+        while(tmp!=NULL){
+            ret+=getsize(tmp->type);
+            tmp=tmp->tail;
+        }
+        return ret;
+    }
+    return 0;
+}
+
 void trans_FunDec(Node *root){
     Type ftype=query_symbol(root->child->info_char,0,0);
     if(!ftype){
         debug("error in trans_FunDec: ftype==NULL\n");
-        exit(1);
+        assert(0);
     }
     InterCodes node=new_intercode(IR_FUNCTION);
-    node->code->u.unaryop.unary->kind=IR_FUNCNAME;
+    node->code->u.unaryop.unary=new_operand(IR_FUNCNAME);
     node->code->u.unaryop.unary->u.funcname=root->child->info_char;
     insert_code(node);
     if(ftype->u.function.paramscnt!=0){
         FieldList field=ftype->u.function.paramlist;
         while(field!=NULL){
             InterCodes tmp=new_intercode(IR_PARAM);
-            tmp->code->u.unaryop.unary->kind=IR_VARIABLE;
+            tmp->code->u.unaryop.unary=new_operand(IR_VARIABLE);
             tmp->code->u.unaryop.unary->u.varname=field->name;
+            if(field->type->kind!=BASIC)tmp->code->u.unaryop.unary->is_addr=1;
             insert_code(tmp);
             field=field->tail;
         }
@@ -195,12 +202,13 @@ Operand trans_Exp(Node *root){
         return ret;
     }
     else if(gencheck(root,1,"FLOAT")){
-        debug("error! float\n");exit(1);
+        debug("error! float\n");assert(0);
     }
     else if(gencheck(root,1,"ID")){
         debug("Exp -> ID\n");
         Operand ret=new_operand(IR_VARIABLE);
         ret->u.varname=root->child->info_char;
+        ret->is_addr=query_if_addr(ret->u.varname,1,_depth);
         return ret;
     }
     else if(gencheck(root,2,"MINUS","Exp")){
@@ -208,9 +216,7 @@ Operand trans_Exp(Node *root){
         Operand tmp=trans_Exp(root->child->next);
         Operand ret=new_tmpop();
         InterCodes node=new_intercode(IR_SUB);
-        free(node->code->u.binop.op2);
-        free(node->code->u.binop.result);
-        node->code->u.binop.op1->kind=IR_CONSTANT;
+        node->code->u.binop.op1=new_operand(IR_CONSTANT);
         node->code->u.binop.op1->u.value=0;
         node->code->u.binop.op2=tmp;
         node->code->u.binop.result=ret;
@@ -223,24 +229,20 @@ Operand trans_Exp(Node *root){
         Operand lable2=new_lable();
         Operand tmp=new_tmpop();
         InterCodes code0=new_intercode(IR_ASSIGN);
-        free(code0->code->u.assign.left);
         code0->code->u.assign.left=tmp;
-        code0->code->u.assign.right->kind=IR_CONSTANT;
+        code0->code->u.assign.right=new_operand(IR_CONSTANT);
         code0->code->u.assign.right->u.value=0;
         insert_code(code0);
         trans_Cond(root,lable1,lable2);
         InterCodes code2=new_intercode(IR_LABEL);
-        free(code2->code->u.unaryop.unary);
         code2->code->u.unaryop.unary=lable1;
         insert_code(code2);
         code2=new_intercode(IR_ASSIGN);
-        free(code2->code->u.assign.left);
         code2->code->u.assign.left=tmp;
-        code2->code->u.assign.right->kind=IR_CONSTANT;
+        code2->code->u.assign.right=new_operand(IR_CONSTANT);
         code2->code->u.assign.right->u.value=1;
         insert_code(code2);
         code2=new_intercode(IR_LABEL);
-        free(code2->code->u.unaryop.unary);
         code2->code->u.unaryop.unary=lable2;
         insert_code(code2);
         return tmp;
@@ -248,11 +250,9 @@ Operand trans_Exp(Node *root){
     else if(gencheck(root,3,"Exp","ASSIGNOP","Exp")){
         debug("Exp -> Exp ASSIGNOP Exp\n");
         //默认exp1是ID TODO: 结构体和数组
-        Operand op2=trans_Exp(root->child->next->next);
         Operand op1=trans_Exp(root->child);
+        Operand op2=trans_Exp(root->child->next->next);
         InterCodes code=new_intercode(IR_ASSIGN);
-        free(code->code->u.assign.left);
-        free(code->code->u.assign.right);
         code->code->u.assign.left=op1;
         code->code->u.assign.right=op2;
         insert_code(code);
@@ -264,24 +264,20 @@ Operand trans_Exp(Node *root){
         Operand lable2=new_lable();
         Operand tmp=new_tmpop();
         InterCodes code0=new_intercode(IR_ASSIGN);
-        free(code0->code->u.assign.left);
         code0->code->u.assign.left=tmp;
-        code0->code->u.assign.right->kind=IR_CONSTANT;
+        code0->code->u.assign.right=new_operand(IR_CONSTANT);
         code0->code->u.assign.right->u.value=0;
         insert_code(code0);
         trans_Cond(root,lable1,lable2);
         InterCodes code2=new_intercode(IR_LABEL);
-        free(code2->code->u.unaryop.unary);
         code2->code->u.unaryop.unary=lable1;
         insert_code(code2);
         code2=new_intercode(IR_ASSIGN);
-        free(code2->code->u.assign.left);
         code2->code->u.assign.left=tmp;
-        code2->code->u.assign.right->kind=IR_CONSTANT;
+        code2->code->u.assign.right=new_operand(IR_CONSTANT);
         code2->code->u.assign.right->u.value=1;
         insert_code(code2);
         code2=new_intercode(IR_LABEL);
-        free(code2->code->u.unaryop.unary);
         code2->code->u.unaryop.unary=lable2;
         insert_code(code2);
         return tmp;
@@ -292,24 +288,20 @@ Operand trans_Exp(Node *root){
         Operand lable2=new_lable();
         Operand tmp=new_tmpop();
         InterCodes code0=new_intercode(IR_ASSIGN);
-        free(code0->code->u.assign.left);
         code0->code->u.assign.left=tmp;
-        code0->code->u.assign.right->kind=IR_CONSTANT;
+        code0->code->u.assign.right=new_operand(IR_CONSTANT);
         code0->code->u.assign.right->u.value=0;
         insert_code(code0);
         trans_Cond(root,lable1,lable2);
         InterCodes code2=new_intercode(IR_LABEL);
-        free(code2->code->u.unaryop.unary);
         code2->code->u.unaryop.unary=lable1;
         insert_code(code2);
         code2=new_intercode(IR_ASSIGN);
-        free(code2->code->u.assign.left);
         code2->code->u.assign.left=tmp;
-        code2->code->u.assign.right->kind=IR_CONSTANT;
+        code2->code->u.assign.right=new_operand(IR_CONSTANT);
         code2->code->u.assign.right->u.value=1;
         insert_code(code2);
         code2=new_intercode(IR_LABEL);
-        free(code2->code->u.unaryop.unary);
         code2->code->u.unaryop.unary=lable2;
         insert_code(code2);
         return tmp;
@@ -320,24 +312,20 @@ Operand trans_Exp(Node *root){
         Operand lable2=new_lable();
         Operand tmp=new_tmpop();
         InterCodes code0=new_intercode(IR_ASSIGN);
-        free(code0->code->u.assign.left);
         code0->code->u.assign.left=tmp;
-        code0->code->u.assign.right->kind=IR_CONSTANT;
+        code0->code->u.assign.right=new_operand(IR_CONSTANT);
         code0->code->u.assign.right->u.value=0;
         insert_code(code0);
         trans_Cond(root,lable1,lable2);
         InterCodes code2=new_intercode(IR_LABEL);
-        free(code2->code->u.unaryop.unary);
         code2->code->u.unaryop.unary=lable1;
         insert_code(code2);
         code2=new_intercode(IR_ASSIGN);
-        free(code2->code->u.assign.left);
         code2->code->u.assign.left=tmp;
-        code2->code->u.assign.right->kind=IR_CONSTANT;
+        code2->code->u.assign.right=new_operand(IR_CONSTANT);
         code2->code->u.assign.right->u.value=1;
         insert_code(code2);
         code2=new_intercode(IR_LABEL);
-        free(code2->code->u.unaryop.unary);
         code2->code->u.unaryop.unary=lable2;
         insert_code(code2);
         return tmp;
@@ -353,10 +341,7 @@ Operand trans_Exp(Node *root){
         else if(strcmp(tmpchar,"MINUS")==0)node->code->kind=IR_SUB;
         else if(strcmp(tmpchar,"STAR")==0)node->code->kind=IR_MUL;
         else if(strcmp(tmpchar,"DIV")==0)node->code->kind=IR_DIV;
-        else{debug("error colculate\n");exit(1);}
-        free(node->code->u.binop.op1);
-        free(node->code->u.binop.op2);
-        free(node->code->u.binop.result);
+        else{debug("error colculate\n");assert(0);}
         node->code->u.binop.op1=t1;
         node->code->u.binop.op2=t2;
         node->code->u.binop.result=t3;
@@ -365,9 +350,49 @@ Operand trans_Exp(Node *root){
     }
     else if(gencheck(root,3,"Exp","DOT","ID")){
         debug("Exp -> Exp DOT ID\n");
+        Operand head=trans_Exp(root->child);
+        head->access-=1;
+        Operand size=new_operand(IR_CONSTANT);
+        FieldList field=((Type)root->child->type)->u.structure;
+        while(field&&strcmp(field->name,root->child->next->next->info_char)){
+            size->u.value+=getsize(field->type);
+            field=field->tail;
+        }
+        InterCodes node=new_intercode(IR_ADD);
+        node->code->u.binop.op1=head;
+        node->code->u.binop.op2=size;
+        Operand pos=new_tmpop();
+        node->code->u.binop.result=pos;
+        insert_code(node);
+        Operand ret=new_operand(IR_TMPOP);
+        ret->access=IR_POINT;
+        ret->u.tmpno=pos->u.tmpno;
+        return ret;
     }
     else if(gencheck(root,4,"Exp","LB","Exp","RB")){
         debug("Exp -> Exp LB Exp RB\n");
+        Operand head=trans_Exp(root->child);
+        head->access-=1;
+        Operand pos=trans_Exp(root->child->next->next);
+        Operand size=new_operand(IR_CONSTANT);
+        size->u.value=getsize(((Type)root->child->type)->u.array.elem);
+        InterCodes node=new_intercode(IR_MUL);
+        node->code->u.binop.op1=pos;
+        node->code->u.binop.op2=size;
+        pos=new_tmpop();
+        node->code->u.binop.result=pos;
+        insert_code(node);
+
+        node=new_intercode(IR_ADD);
+        node->code->u.binop.op1=head;
+        node->code->u.binop.op2=pos;
+        pos=new_tmpop();
+        node->code->u.binop.result=pos;
+        insert_code(node);
+        Operand ret=new_operand(IR_TMPOP);
+        ret->access=IR_POINT;
+        ret->u.tmpno=pos->u.tmpno;
+        return ret;
     }
     else if(gencheck(root,3,"LP","Exp","RP")){
         debug("Exp -> LP Exp RP\n");
@@ -378,7 +403,6 @@ Operand trans_Exp(Node *root){
         if(strcmp(root->child->info_char,"read")==0){
             Operand op=new_tmpop();
             InterCodes node=new_intercode(IR_READ);
-            free(node->code->u.unaryop.unary);
             node->code->u.unaryop.unary=op;
             insert_code(node);
             return op;
@@ -386,8 +410,8 @@ Operand trans_Exp(Node *root){
         else{
             Operand op=new_tmpop();
             InterCodes node=new_intercode(IR_CALL);
-            free(node->code->u.assign.left);
             node->code->u.assign.left=op;
+            node->code->u.assign.right=new_operand(IR_FUNCNAME);
             node->code->u.assign.right->u.funcname=root->child->info_char;
             insert_code(node);
             return op;
@@ -398,10 +422,11 @@ Operand trans_Exp(Node *root){
         if(strcmp(root->child->info_char,"write")==0){
             Operand op=trans_Exp(root->child->next->next->child);
             InterCodes node=new_intercode(IR_WRITE);
-            free(node->code->u.unaryop.unary);
             node->code->u.unaryop.unary=op;
             insert_code(node);
-            return op;
+            Operand tmp=new_operand(IR_CONSTANT);
+            tmp->u.value=0;
+            return tmp;
         }
         else{
             InterCodes head=trans_args(root->child->next->next);
@@ -413,10 +438,9 @@ Operand trans_Exp(Node *root){
             }
             Operand op=new_tmpop();
             InterCodes node=new_intercode(IR_CALL);
-            free(node->code->u.assign.left);
             node->code->u.assign.left=op;
+            node->code->u.assign.right=new_operand(IR_FUNCNAME);
             node->code->u.assign.right->u.funcname=root->child->info_char;
-            node->code->u.assign.right->kind=IR_FUNCNAME;
             insert_code(node);
             return op;
         }
@@ -429,16 +453,22 @@ Operand trans_Exp(Node *root){
 
 InterCodes trans_args(Node *root){
     InterCodes node=new_intercode(IR_ARG);
-    free(node->code->u.unaryop.unary);
     if(gencheck(root,1,"Exp")){
         debug("Args -> Exp\n");
         Operand op=trans_Exp(root->child);
+        if(((Type)root->child->type)->kind!=BASIC){
+            op->access-=1;
+        }
         node->code->u.unaryop.unary=op;
+        node->next=NULL;
         return node;
     }
     else if(gencheck(root,3,"Exp","COMMA","Args")){
         debug("Args -> Exp COMMA Args\n");
         Operand op=trans_Exp(root->child);
+        if(((Type)root->child->type)->kind!=BASIC){
+            op->access-=1;
+        }
         node->code->u.unaryop.unary=op;
         InterCodes next=trans_args(root->child->next->next);
         InterCodes ret=next;
@@ -454,35 +484,51 @@ InterCodes trans_args(Node *root){
 
 void trans_Cond(Node *root,Operand label1,Operand label2){
     if(gencheck(root,3,"Exp","RELOP","Exp")){
-        Operand t1=trans_Exp(root->child);
-        Operand t2=trans_Exp(root->child->next->next);
+        Operand t1=trans_Exp(root->child);//code1
+        Operand t2=trans_Exp(root->child->next->next);//code2
         Operand relop=get_relop(root->child->next->info_char);
         InterCodes node1=new_intercode(IR_IFGOTO);
-        free(node1->code->u.gotop.op1);
-        free(node1->code->u.gotop.op2);
-        free(node1->code->u.gotop.lable);
-        free(node1->code->u.gotop.relop);
         node1->code->u.gotop.op1=t1;
         node1->code->u.gotop.op2=t2;
         node1->code->u.gotop.lable=label1;
         node1->code->u.gotop.relop=relop;
-        insert_code(node1);
+        insert_code(node1);//code3
         node1=new_intercode(IR_GOTO);
-        free(node1->code->u.unaryop.unary);
         node1->code->u.unaryop.unary=label2;
-        insert_code(node1);
+        insert_code(node1);//GOTO label_false
     }
     else if(gencheck(root,2,"NOT","Exp")){
-
+        trans_Cond(root->child->next,label2,label1);
     }
     else if(gencheck(root,3,"Exp","AND","Exp")){
+        Operand label3=new_lable();
+        trans_Cond(root->child,label3,label2);//code1
+        InterCodes node=new_intercode(IR_LABEL);
+        node->code->u.unaryop.unary=label3;
+        insert_code(node);//LABEL label3
+        trans_Cond(root->child->next->next,label1,label2);//code2
 
     }
     else if(gencheck(root,3,"Exp","OR","Exp")){
-
+        Operand label3=new_lable();
+        trans_Cond(root->child,label1,label3);//code1
+        InterCodes node=new_intercode(IR_LABEL);
+        node->code->u.unaryop.unary=label3;
+        insert_code(node);//LABEL label3
+        trans_Cond(root->child->next->next,label1,label2);//code2
     }
     else {
-        debug("error in trans_cond\n");
-        exit(1);
+        Operand t1=trans_Exp(root);//code1
+        InterCodes code2=new_intercode(IR_IFGOTO);
+        code2->code->u.gotop.op1=t1;
+        code2->code->u.gotop.relop=new_operand(IR_RELOP);
+        code2->code->u.gotop.relop->u.relopid="!=";
+        code2->code->u.gotop.op2=new_operand(IR_VARIABLE);
+        code2->code->u.gotop.op2->u.value=0;
+        code2->code->u.gotop.lable=label1;
+        insert_code(code2);//code2
+        code2=new_intercode(IR_GOTO);
+        code2->code->u.unaryop.unary=label2;
+        insert_code(code2);//GOTO label_false;
     }
 }

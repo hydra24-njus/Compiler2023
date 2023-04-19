@@ -41,6 +41,23 @@ void insert_node(Type type,const char *name,int deep,int kind,ScopeList scope){
     node->type=type;
     node->depth=deep;
     node->kind=kind;
+    node->is_addr=0;
+    node->next=hashtable[index]->next;
+    hashtable[index]->next=node;
+    if(scope!=NULL){
+        node->tail=scope->tail;
+        scope->tail=node;
+    }
+}
+void insert_node_asaddr(Type type,const char *name,int deep,int kind,ScopeList scope){
+    int index=hash(name,TABLE_SIZE);
+    struct SymbolNode_ *node=malloc(sizeof(struct SymbolNode_));
+    node->name=name;
+    node->next=NULL;
+    node->type=type;
+    node->depth=deep;
+    node->kind=kind;
+    node->is_addr=1;
     node->next=hashtable[index]->next;
     hashtable[index]->next=node;
     if(scope!=NULL){
@@ -86,11 +103,47 @@ Type query_symbol(const char *name,int type,int deep){
     }
     return NULL;
 }
-
+int query_if_addr(const char *name,int type,int deep){
+    //type=0:只查当前层 是否重定义
+    //type=1:查本层及更浅的层
+    int index=hash(name,TABLE_SIZE);
+    sNode ret=NULL;
+    if(type==0){
+        for(sNode i=hashtable[index]->next;i;i=i->next){
+            if(strcmp(name,i->name)==0){
+                if(i->depth==deep){
+                    ret=i;
+                    break;
+                }
+                else if(i->kind==STRUCT){
+                    ret=i;
+                    break;
+                }
+            }
+        }
+        if(ret){
+            return ret->is_addr;
+        }
+    }
+    else if(type==1){
+        for(sNode i=hashtable[index]->next;i;i=i->next){
+            if(strcmp(name,i->name)==0){
+                if(i->depth<=deep){
+                    ret=i;
+                    break;
+                }
+            }
+        }
+        if(ret){
+            return ret->is_addr;
+        }
+    }
+    return 0;
+}
 void delete_node(struct SymbolNode_ *node){
     int index=hash(node->name,TABLE_SIZE);
     struct SymbolNode_ *tmp=hashtable[index];
-    while(tmp->next!=node){
+    while(tmp&&tmp->next!=node){
         tmp=tmp->next;
     }
     tmp->next=node->next;
@@ -182,17 +235,19 @@ struct ScopeList_ *enter_new_scope(){
     struct ScopeList_ *ret=malloc(sizeof(struct ScopeList_));
     ret->next=scopelist->next;
     scopelist->next=ret;
+    ret->tail=NULL;
     return ret;
 }
 
 struct ScopeList_ *exit_cur_scope(){
     struct ScopeList_ *ret=scopelist->next;
     struct SymbolNode_ *tmp=ret->tail;
-    struct SymbolNode_ *out=ret->tail;
-    while(ret->tail!=NULL){
-        tmp=ret->tail;
-        ret->tail=tmp->tail;
-        delete_node(tmp);
+    if(tmp!=NULL){
+        while(ret->tail!=NULL){
+            tmp=ret->tail;
+            ret->tail=tmp->tail;
+            delete_node(tmp);
+        }
     }
     scopelist->next=ret->next;
     free(ret);

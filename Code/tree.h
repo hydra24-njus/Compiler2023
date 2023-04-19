@@ -15,13 +15,13 @@ typedef struct node{
     enum{synunit=1,lexid,lextype,lexint,lexfloat,lexother} node_type;//当前节点类型；
     int lineno;
     char *node_info;
+    void *type;
     union 
     {
         int   info_int;
         float info_float;
         char  *info_char;
     };
-    
 }Node;
 
 
