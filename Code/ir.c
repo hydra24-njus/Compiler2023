@@ -249,6 +249,55 @@ Operand trans_Exp(Node *root){
     }
     else if(gencheck(root,3,"Exp","ASSIGNOP","Exp")){
         debug("Exp -> Exp ASSIGNOP Exp\n");
+        if(((Type)root->child->type)->kind==ARRAY){
+            //这里处理数组的拷贝
+            Operand array1=trans_Exp(root->child);
+            Operand array2=trans_Exp(root->child->next->next);array2->access=IR_ADDR;
+            Operand ta1=new_tmpop(),ta2=new_tmpop();
+            Operand p1=new_operand(array1->kind),p2=new_operand(array2->kind);
+            memcpy(p1,array1,sizeof(struct Operand_));
+            memcpy(p2,array2,sizeof(struct Operand_));
+            p1->access=IR_ADDR;p2->access=IR_ADDR;
+            InterCodes assnode=new_intercode(IR_ASSIGN);
+            assnode->code->u.assign.left=ta1;
+            assnode->code->u.assign.right=p1;
+            insert_code(assnode);// ta1=&p1
+            assnode=new_intercode(IR_ASSIGN);
+            assnode->code->u.assign.left=ta2;
+            assnode->code->u.assign.right=p2;
+            insert_code(assnode);// ta2=&p2
+            int size1=getsize((Type)root->child->type);
+            int size2=getsize((Type)root->child->next->next->type);
+            int size=size1>size2?size1:size2;
+            for(int i=0;i<size;i+=4){
+                Operand pos=new_operand(IR_CONSTANT);
+                Operand t1=new_tmpop();
+                Operand t2=new_tmpop();
+                InterCodes node=new_intercode(IR_ADD);
+                pos->u.value=i;
+                node->code->u.binop.op1=ta1;
+                node->code->u.binop.op2=pos;
+                node->code->u.binop.result=t1;
+                insert_code(node);//t1=ta1+pos
+                node=new_intercode(IR_ADD);
+                pos->u.value=i;
+                node->code->u.binop.op1=ta2;
+                node->code->u.binop.op2=pos;
+                node->code->u.binop.result=t2;
+                insert_code(node);//t2=ta2+pos
+                Operand t3=new_operand(IR_TMPOP);
+                t3->access=IR_POINT;
+                t3->u.tmpno=t1->u.tmpno;
+                Operand t4=new_operand(IR_TMPOP);
+                t4->access=IR_POINT;
+                t4->u.tmpno=t2->u.tmpno;
+                node=new_intercode(IR_ASSIGN);
+                node->code->u.assign.left=t3;
+                node->code->u.assign.right=t4;
+                insert_code(node);//*t1=*t2
+            }
+            return array1;
+        }
         //默认exp1是ID TODO: 结构体和数组
         Operand op1=trans_Exp(root->child);
         Operand op2=trans_Exp(root->child->next->next);
