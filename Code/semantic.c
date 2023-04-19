@@ -86,6 +86,7 @@ void funcheck(){
 __attribute__((constructor)) int io_init(){
     //printf("io init\n\n");
     Type readfun=malloc(sizeof(struct Type_));
+    memset(readfun,0,sizeof(struct Type_));
     readfun->kind=FUNCTION_T;
     readfun->u.function.returntype=&type_int;
     readfun->u.function.paramscnt=0;
@@ -94,11 +95,13 @@ __attribute__((constructor)) int io_init(){
     insert_node(readfun,readname,0,FUNCTION,NULL);
 
     Type writefun=malloc(sizeof(struct Type_));
+    memset(writefun,0,sizeof(struct Type_));
     writefun->kind=FUNCTION_T;
     writefun->u.function.returntype=&type_int;
     writefun->u.function.paramscnt=1;
     writefun->u.function.isdef=1;
     FieldList param=malloc(sizeof(struct FieldList_));
+    memset(param,0,sizeof(struct FieldList_));
     param->name=NULL;
     param->type=&type_int;
     param->tail=NULL;
@@ -244,14 +247,14 @@ Type StructSpecifier_analyse(Node *node){
         _struct_depth++;
         FieldList field=DefList_struct_analyse(node->child->next->next);
         _struct_depth--;
-        Type type=malloc(sizeof(struct Type_));
+        Type type=malloc(sizeof(struct Type_));memset(type,0,sizeof(struct Type_));
         type->kind=STRUCTURE;
         type->u.structure=field;
         while(field!=NULL){
             delete_struct_table(field->name);
             field=field->tail;
         }
-        char *noname=malloc(4*sizeof(char));
+        char *noname=malloc(4*sizeof(char));memset(noname,0,4*sizeof(char));
         static int noname_cnt=0;
         sprintf(noname,"%d",noname_cnt++);
         insert_node(type,noname,0,STRUCT,NULL);
@@ -267,7 +270,7 @@ Type StructSpecifier_analyse(Node *node){
         _struct_depth++;
         FieldList field=DefList_struct_analyse(node->child->next->next->next);
         _struct_depth--;
-        Type type=malloc(sizeof(struct Type_));
+        Type type=malloc(sizeof(struct Type_));memset(type,0,sizeof(struct Type_));
         type->kind=STRUCTURE;
         type->u.structure=field;
         while(field!=NULL){
@@ -298,7 +301,7 @@ Type StructSpecifier_analyse(Node *node){
             error_output(16,node->child->next->lineno,optag);
             return NULL;
         }
-        Type type=malloc(sizeof(struct Type_));
+        Type type=malloc(sizeof(struct Type_));memset(type,0,sizeof(struct Type_));
         type->kind=STRUCTURE;
         type->u.structure=NULL;
         insert_node(type,optag,0,STRUCT,NULL);
@@ -308,7 +311,7 @@ Type StructSpecifier_analyse(Node *node){
         debug("StructSpecifier -> STRUCT LC RC\n");
         //匿名结构体
         FieldList field=NULL;
-        Type type=malloc(sizeof(struct Type_));
+        Type type=malloc(sizeof(struct Type_));memset(type,0,sizeof(struct Type_));
         type->kind=STRUCTURE;
         type->u.structure=field;
         char noname[4];
@@ -416,7 +419,7 @@ FieldList Dec_struct_analyse(Node *node,Type type){
 FieldList VarDec_analyse(Node *node,Type type){
     if(gencheck(node,1,"ID")){
         debug("VarDec -> ID\n");
-        FieldList field=malloc(sizeof(struct FieldList_));
+        FieldList field=malloc(sizeof(struct FieldList_));memset(field,0,sizeof(struct FieldList_));
         memset(field,0,sizeof(struct FieldList_));
         field->name=node->child->info_char;
         field->type=type;
@@ -426,7 +429,7 @@ FieldList VarDec_analyse(Node *node,Type type){
         debug("VarDec -> VarDec LB INT RB\n");
         FieldList field=VarDec_analyse(node->child,type);
 
-        Type type=malloc(sizeof(struct Type_));
+        Type type=malloc(sizeof(struct Type_));memset(type,0,sizeof(struct Type_));
         memset(type,0,sizeof(struct Type_));
         type->kind=ARRAY;
         type->u.array.size=node->child->next->next->info_int;
@@ -456,7 +459,7 @@ FieldList VarDec_analyse(Node *node,Type type){
 void FunDec_analyse(Node *node,Type type,int def,ScopeList scope){
     //def=0:只声明
     //def=1:定义
-    Type functype=malloc(sizeof(struct Type_));
+    Type functype=malloc(sizeof(struct Type_));memset(functype,0,sizeof(struct Type_));
     functype->kind=FUNCTION_T;
     functype->u.function.returntype=type;
 
@@ -796,7 +799,9 @@ void Dec_analyse(Node *node,Type type,ScopeList scope){
                 code->code->u.assign.right->u.value=varsize;
                 insert_code(code);
             }
+
         }
+        free(field);
     }
     else if(gencheck(node,3,"VarDec","ASSIGNOP","Exp")){
         debug("Dec -> VarDec ASSIGNOP Exp\n");
@@ -819,6 +824,8 @@ void Dec_analyse(Node *node,Type type,ScopeList scope){
         code0->code->u.assign.left=new_operand(IR_VARIABLE);
         code0->code->u.assign.left->u.varname=vname;
         insert_code(code0);
+
+        free(field);
     }
     else{
         debug("error in Dec_analyse\n");

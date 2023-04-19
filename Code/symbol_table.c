@@ -35,7 +35,7 @@ __attribute__((constructor)) void symboltable_init(){
 //全局符号表
 void insert_node(Type type,const char *name,int deep,int kind,ScopeList scope){
     int index=hash(name,TABLE_SIZE);
-    struct SymbolNode_ *node=malloc(sizeof(struct SymbolNode_));
+    struct SymbolNode_ *node=malloc(sizeof(struct SymbolNode_));memset(node,0,sizeof(struct SymbolNode_));
     node->name=name;
     node->next=NULL;
     node->type=type;
@@ -51,7 +51,7 @@ void insert_node(Type type,const char *name,int deep,int kind,ScopeList scope){
 }
 void insert_node_asaddr(Type type,const char *name,int deep,int kind,ScopeList scope){
     int index=hash(name,TABLE_SIZE);
-    struct SymbolNode_ *node=malloc(sizeof(struct SymbolNode_));
+    struct SymbolNode_ *node=malloc(sizeof(struct SymbolNode_));memset(node,0,sizeof(struct SymbolNode_));
     node->name=name;
     node->next=NULL;
     node->type=type;
@@ -154,7 +154,7 @@ void delete_node(struct SymbolNode_ *node){
 //结构体内部作用域的符号表
 void insert_node_struct(Type type,const char *name,int deep){
     int index=hash(name,STRUCT_SIZE);
-    struct SymbolNode_ *node=malloc(sizeof(struct SymbolNode_));
+    struct SymbolNode_ *node=malloc(sizeof(struct SymbolNode_));memset(node,0,sizeof(struct SymbolNode_));
     node->name=name;
     node->next=NULL;
     node->type=type;
@@ -197,7 +197,7 @@ void delete_struct_table(){
 
 //函数定义的全局链表
 void insert_function(int lineno,const char *name){
-    struct FunctionList_ *node=malloc(sizeof(struct FunctionList_));
+    struct FunctionList_ *node=malloc(sizeof(struct FunctionList_));memset(node,0,sizeof(struct FunctionList_));
     node->lineno=lineno;
     node->name=name;
     node->next=functable->next;
@@ -232,7 +232,7 @@ void delete_functable(){
 
 //作用域控制
 struct ScopeList_ *enter_new_scope(){
-    struct ScopeList_ *ret=malloc(sizeof(struct ScopeList_));
+    struct ScopeList_ *ret=malloc(sizeof(struct ScopeList_));memset(ret,0,sizeof(struct ScopeList_));
     ret->next=scopelist->next;
     scopelist->next=ret;
     ret->tail=NULL;
