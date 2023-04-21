@@ -5,7 +5,7 @@ struct SymbolNode_ *hashtable[TABLE_SIZE];
 struct SymbolNode_ *structable[STRUCT_SIZE];
 struct FunctionList_ *functable;
 struct ScopeList_ *scopelist;
-
+static _vid_count=0;
 int hash(const char *name,int size){
     unsigned int val=0,i;
     for(;*name;++name){
@@ -42,6 +42,7 @@ void insert_node(Type type,const char *name,int deep,int kind,ScopeList scope){
     node->depth=deep;
     node->kind=kind;
     node->is_addr=0;
+    node->vid=_vid_count++;
     node->next=hashtable[index]->next;
     hashtable[index]->next=node;
     if(scope!=NULL){
@@ -58,6 +59,7 @@ void insert_node_asaddr(Type type,const char *name,int deep,int kind,ScopeList s
     node->depth=deep;
     node->kind=kind;
     node->is_addr=1;
+    node->vid=_vid_count++;
     node->next=hashtable[index]->next;
     hashtable[index]->next=node;
     if(scope!=NULL){
@@ -103,7 +105,7 @@ Type query_symbol(const char *name,int type,int deep){
     }
     return NULL;
 }
-int query_if_addr(const char *name,int type,int deep){
+sNode query_node(const char *name,int type,int deep){
     //type=0:只查当前层 是否重定义
     //type=1:查本层及更浅的层
     int index=hash(name,TABLE_SIZE);
@@ -122,7 +124,7 @@ int query_if_addr(const char *name,int type,int deep){
             }
         }
         if(ret){
-            return ret->is_addr;
+            return ret;
         }
     }
     else if(type==1){
@@ -135,11 +137,12 @@ int query_if_addr(const char *name,int type,int deep){
             }
         }
         if(ret){
-            return ret->is_addr;
+            return ret;
         }
     }
-    return 0;
+    return NULL;
 }
+
 void delete_node(struct SymbolNode_ *node){
     int index=hash(node->name,TABLE_SIZE);
     struct SymbolNode_ *tmp=hashtable[index];

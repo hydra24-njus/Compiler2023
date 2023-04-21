@@ -117,8 +117,6 @@ int semantic(Node *root){
     if(strcmp(root->node_info,"Program")!=0){
         return 1;
     }
-    //symboltable_init();
-    //io_init();
     Program_analyse(root);
     funcheck();
     delete_functable();
@@ -794,7 +792,9 @@ void Dec_analyse(Node *node,Type type,ScopeList scope){
             if(varsize!=4){
                 InterCodes code=new_intercode(IR_DEC);
                 code->code->u.assign.left=new_operand(IR_VARIABLE);
-                code->code->u.assign.left->u.varname=field->name;
+                sNode tmpnode=query_node(field->name,0,_depth);
+                code->code->u.assign.left->u.vid=tmpnode->vid;
+                code->code->u.assign.left->is_addr=tmpnode->is_addr;
                 code->code->u.assign.right=new_operand(IR_CONSTANT);
                 code->code->u.assign.right->u.value=varsize;
                 insert_code(code);
@@ -822,7 +822,7 @@ void Dec_analyse(Node *node,Type type,ScopeList scope){
         InterCodes code0=new_intercode(IR_ASSIGN);
         code0->code->u.assign.right=t0;
         code0->code->u.assign.left=new_operand(IR_VARIABLE);
-        code0->code->u.assign.left->u.varname=vname;
+        code0->code->u.assign.left->u.vid=query_node(vname,0,_depth)->vid;
         insert_code(code0);
 
         free(field);

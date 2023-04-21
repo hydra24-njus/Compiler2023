@@ -10,6 +10,7 @@ struct Operand_ {
     int is_addr;
     union {
         char *varname;
+        int vid;
         char *funcname;
         int value;
         int tmpno;

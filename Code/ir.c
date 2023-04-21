@@ -37,7 +37,7 @@ void print_op(FILE *fp,Operand op){
                         fprintf(fp,"#%d",op->u.value);
                         break;
         case IR_VARIABLE:
-                        fprintf(fp,"v%s",op->u.varname);
+                        fprintf(fp,"v%d",op->u.vid);
                         break;
         case IR_FUNCNAME:
                         if(strcmp(op->u.funcname,"main")==0)fprintf(fp,"%s",op->u.funcname);
@@ -186,8 +186,9 @@ void trans_FunDec(Node *root){
         while(field!=NULL){
             InterCodes tmp=new_intercode(IR_PARAM);
             tmp->code->u.unaryop.unary=new_operand(IR_VARIABLE);
-            tmp->code->u.unaryop.unary->u.varname=field->name;
-            if(field->type->kind!=BASIC)tmp->code->u.unaryop.unary->is_addr=1;
+            sNode tmpnode=query_node(field->name,0,_depth);
+            tmp->code->u.unaryop.unary->u.vid=tmpnode->vid;
+            tmp->code->u.unaryop.unary->is_addr=tmpnode->is_addr;
             insert_code(tmp);
             field=field->tail;
         }
@@ -207,8 +208,9 @@ Operand trans_Exp(Node *root){
     else if(gencheck(root,1,"ID")){
         debug("Exp -> ID\n");
         Operand ret=new_operand(IR_VARIABLE);
-        ret->u.varname=root->child->info_char;
-        ret->is_addr=query_if_addr(ret->u.varname,1,_depth);
+        sNode node=query_node(root->child->info_char,1,_depth);
+        ret->u.vid=node->vid;
+        ret->is_addr=node->is_addr;
         return ret;
     }
     else if(gencheck(root,2,"MINUS","Exp")){

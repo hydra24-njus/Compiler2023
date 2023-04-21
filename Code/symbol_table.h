@@ -34,10 +34,11 @@ struct SymbolNode_{
     enum { VARIABLE=0,STRUCT=2,FUNCTION=3} kind;
     char *name;
     Type type;
-    struct SymbolNode_ *next;
-    struct SymbolNode_ *tail;
     unsigned depth;
     int is_addr;
+    int vid;
+    struct SymbolNode_ *next;
+    struct SymbolNode_ *tail;
 };
 
 struct FunctionList_{
@@ -55,9 +56,9 @@ void symboltable_init();
 
 void insert_node(Type type,const char *name,int deep,int kind,ScopeList scope);
 void insert_node_asaddr(Type type,const char *name,int deep,int kind,ScopeList scope);
-Type query_symbol(const char *name,int type,int deep);
 
-int query_if_addr(const char *name,int type,int deep);
+Type query_symbol(const char *name,int type,int deep);
+sNode query_node(const char *name,int type,int deep);
 
 void insert_node_struct(Type type,const char *name,int deep);
 Type query_symbol_struct(const char *name,int deep);
@@ -73,4 +74,5 @@ struct ScopeList_ *exit_cur_scope();
 
 void print_table();
 int typecheck(Type A, Type B);
+
 #endif

@@ -32,7 +32,10 @@ int main(int argc,char** argv){
         return 1;//there must be something error
     }
     debug("---------------semantic pass---------------\n");
-    //do something
+    if(semantic_error!=0){
+        debug("has semantic error!\n");
+        return 1;
+    }
     print_ir(fp);
     return 0;
 }
