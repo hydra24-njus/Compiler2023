@@ -254,12 +254,12 @@ Operand trans_Exp(Node *root){
         if(((Type)root->child->type)->kind==ARRAY){
             //这里处理数组的拷贝
             Operand array1=trans_Exp(root->child);
-            Operand array2=trans_Exp(root->child->next->next);array2->access=IR_ADDR;
+            Operand array2=trans_Exp(root->child->next->next);
             Operand ta1=new_tmpop(),ta2=new_tmpop();
             Operand p1=new_operand(array1->kind),p2=new_operand(array2->kind);
             memcpy(p1,array1,sizeof(struct Operand_));
             memcpy(p2,array2,sizeof(struct Operand_));
-            p1->access=IR_ADDR;p2->access=IR_ADDR;
+            p1->access-=1;p2->access-=1;
             InterCodes assnode=new_intercode(IR_ASSIGN);
             assnode->code->u.assign.left=ta1;
             assnode->code->u.assign.right=p1;
@@ -574,7 +574,7 @@ void trans_Cond(Node *root,Operand label1,Operand label2){
         code2->code->u.gotop.op1=t1;
         code2->code->u.gotop.relop=new_operand(IR_RELOP);
         code2->code->u.gotop.relop->u.relopid="!=";
-        code2->code->u.gotop.op2=new_operand(IR_VARIABLE);
+        code2->code->u.gotop.op2=new_operand(IR_CONSTANT);
         code2->code->u.gotop.op2->u.value=0;
         code2->code->u.gotop.lable=label1;
         insert_code(code2);//code2
