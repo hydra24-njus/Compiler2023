@@ -423,7 +423,10 @@ Operand trans_Exp(Node *root){
     else if(gencheck(root,4,"Exp","LB","Exp","RB")){
         debug("Exp -> Exp LB Exp RB\n");
         Operand head=trans_Exp(root->child);
-        head->access-=1;
+        Operand tmphead=new_operand(head->kind);
+        memcpy(tmphead,head,sizeof(struct Operand_));
+        tmphead->access-=1;
+        head=tmphead;
         Operand pos=trans_Exp(root->child->next->next);
         Operand size=new_operand(IR_CONSTANT);
         size->u.value=getsize(((Type)root->child->type)->u.array.elem);
