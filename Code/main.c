@@ -38,7 +38,7 @@ int main(int argc,char** argv){
         debug("has semantic error!\n");
         return 1;
     }
-    print_ir(stdout);
+    //print_ir(stdout);
     print_asm(fp);
     return 0;
 }

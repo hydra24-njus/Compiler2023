@@ -70,23 +70,28 @@ void print_asm(FILE* fp){
 void handle_op(FILE* fp,Operand t,int reg){
     char* regname;
     if(reg==0)regname="$t0";
-    if(reg==1)regname="$t1";
-    if(reg==2)regname="$t1";
+    else if(reg==1)regname="$t1";
+    else if(reg==2)regname="$t2";
     if(t->kind==IR_CONSTANT){
         fprintf(fp,"  li %s, %d\n",regname,t->u.value);
     }
-    else if(t->kind==IR_ADDR&&!t->is_addr){
+    else if(t->access==IR_ADDR&&!t->is_addr){
         int pos=find_pos(t->kind,t->u.vid);
-        fprintf(fp,"  addi %s, $fp, -%d\n",regname,pos);
+        if(pos>=32767){
+            fprintf(fp,"  li $t3, %d\n",pos);
+            fprintf(fp,"  sub %s, $fp, $t3\n",regname);
+        }
+        else
+            fprintf(fp,"  addi %s, $fp, -%d\t\t#test addr\n",regname,pos);
     }
-    else if(t->kind==IR_POINT){
+    else if(t->access==IR_POINT){
         int pos=find_pos(t->kind,t->u.vid);
         fprintf(fp,"  lw $t3, -%d($fp)\n",pos);
-        fprintf(fp,"  lw %s, 0($t3)\n",regname);
+        fprintf(fp,"  lw %s, 0($t3)\t\t#test point\n",regname);
     }
     else{
         int pos=find_pos(t->kind,t->u.vid);
-        fprintf(fp,"  lw %s, -%d($fp)\n",regname,pos);
+        fprintf(fp,"  lw %s, -%d($fp)\t\t#test var%d\n",regname,pos,t->access);
     }
 }
 void trans_one_code(FILE *fp,InterCodes cur){
@@ -160,9 +165,15 @@ void trans_one_code(FILE *fp,InterCodes cur){
             }
             //print();
             _offset+=8;
-            fprintf(fp,"  addi $sp, $sp, -%d\n",_offset);
-            fprintf(fp,"  sw $fp, 0($sp)\n");
+            if(_offset>=32767||_offset<=-32768){
+                fprintf(fp,"  li $t0, %d\n",_offset);
+                fprintf(fp,"  sub $sp, $sp, $t0\n");
+            }
+            else{
+                fprintf(fp,"  addi $sp, $sp, -%d\n",_offset);
+            }
             fprintf(fp,"  sw $ra, 4($sp)\n");
+            fprintf(fp,"  sw $fp, 0($sp)\n");
         }
             break;
         case IR_LABEL:{
@@ -226,226 +237,96 @@ void trans_one_code(FILE *fp,InterCodes cur){
                 fprintf(fp,"  sw $t0, -%d($fp)\n",rpos);
             }
             else if(op1->kind==IR_CONSTANT){
-                int pos=find_pos(op2->kind,op2->u.vid);
-                int rpos=find_pos(result->kind,result->u.vid);
-                if(op2->access==IR_ADDR&&!op2->is_addr){
-                    fprintf(fp,"  addi $t1, $fp, -%d\n",pos);
-                    fprintf(fp,"  addi $t2, $t1, %d\n",op1->u.value);
-                    fprintf(fp,"  sw $t2, -%d($fp)\n",rpos);
-                }
-                else if(op2->access==IR_POINT){
-                    fprintf(fp,"  addi $t0, $fp, -%d\n",pos);
-                    fprintf(fp,"  lw $t1, 0($t0)\n");
-                    fprintf(fp,"  addi $t2, $t1, %d\n",op1->u.value);
-                    fprintf(fp,"  sw $t2, -%d($fp)\n",rpos);
+                if(op1->u.value>=32767||op1->u.value<=-32768){
+                    handle_op(fp,op1,1);
+                    handle_op(fp,op2,2);
+                    fprintf(fp,"  add $t0, $t1, $t2\n");
                 }
                 else{
-                    fprintf(fp,"  lw $t1, -%d($fp)\n",pos);
-                    fprintf(fp,"  addi $t2, $t1, %d\n",op1->u.value);
-                    fprintf(fp,"  sw $t2, -%d($fp)\n",rpos);
+                    handle_op(fp,op2,2);
+                    fprintf(fp,"  addi $t0, $t2, %d\n",op1->u.value);
                 }
             }
             else if(op2->kind==IR_CONSTANT){
-                int pos=find_pos(op1->kind,op1->u.vid);
-                int rpos=find_pos(result->kind,result->u.vid);
-                if(op1->access==IR_ADDR&&!op1->is_addr){
-                    fprintf(fp,"  addi $t1, $fp, -%d\n",pos);
-                    fprintf(fp,"  addi $t2, $t1, %d\n",op2->u.value);
-                    fprintf(fp,"  sw $t2, -%d($fp)\n",rpos);
-                }
-                else if(op1->access==IR_POINT){
-                    fprintf(fp,"  addi $t0, $fp, -%d\n",pos);
-                    fprintf(fp,"  lw $t1, 0($t0)\n");
-                    fprintf(fp,"  addi $t2, $t1, %d\n",op2->u.value);
-                    fprintf(fp,"  sw $t2, -%d($fp)\n",rpos);
+                if(op2->u.value>=32767||op2->u.value<=-32768){
+                    handle_op(fp,op1,1);
+                    handle_op(fp,op2,2);
+                    fprintf(fp,"  add $t0, $t1, $t2\n");
                 }
                 else{
-                    fprintf(fp,"  lw $t1, -%d($fp)\n",pos);
-                    fprintf(fp,"  addi $t2, $t1, %d\n",op2->u.value);
-                    fprintf(fp,"  sw $t2, -%d($fp)\n",rpos);
+                    handle_op(fp,op1,1);
+                    fprintf(fp,"  addi $t0, $t1, %d\n",op2->u.value);
                 }
             }
             else{
-                int pos1=find_pos(op1->kind,op1->u.vid);
-                int pos2=find_pos(op2->kind,op2->u.vid);
-                int rpos=find_pos(result->kind,result->u.vid);
-                if(op1->access==IR_ADDR&&!op1->is_addr){
-                    fprintf(fp,"  addi $t0, $fp, -%d\n",pos1);
-                }
-                else if(op1->access==IR_POINT){
-                    fprintf(fp,"  addi $t1, $fp, -%d\n",pos1);
-                    fprintf(fp,"  lw $t0, 0($t0)\n");
-                }
-                else{
-                    fprintf(fp,"  lw $t0, -%d($fp)\n",pos1);
-                }
-                if(op2->access==IR_ADDR&&!op2->is_addr){
-                    fprintf(fp,"  addi $t1, $fp, -%d\n",pos2);
-                }
-                else if(op2->access==IR_POINT){
-                    fprintf(fp,"  addi $t2, $fp, -%d\n",pos2);
-                    fprintf(fp,"  lw $t1, 0($t2)\n");
-                }
-                else{
-                    fprintf(fp,"  lw $t1, -%d($fp)\n",pos2);
-                }
-                fprintf(fp,"  add $t2, $t0, $t1\n");
-                fprintf(fp,"  sw $t2, -%d($fp)\n",rpos);
+                handle_op(fp,op1,1);
+                handle_op(fp,op2,2);
+                fprintf(fp,"  add $t0, $t1, $t2\n");
             }
+            int pos=find_pos(result->kind,result->u.vid);
+            fprintf(fp,"  sw $t0, -%d($fp)\n",pos);
         }
             break;
         case IR_SUB:{
-            Operand op1=cur->code->u.binop.op1;//t0
-            Operand op2=cur->code->u.binop.op2;//t1
-            Operand result=cur->code->u.binop.result;//t2
+            Operand op1=cur->code->u.binop.op1;//t1
+            Operand op2=cur->code->u.binop.op2;//t2
+            Operand result=cur->code->u.binop.result;//t0
             if(op1->kind==IR_CONSTANT&&op2->kind==IR_CONSTANT){
                 int rpos=find_pos(result->kind,result->u.vid);
                 fprintf(fp,"  li $t0, %d\n",op1->u.value-op2->u.value);
                 fprintf(fp,"  sw $t0, -%d($fp)\n",rpos);
             }
             else if(op1->kind==IR_CONSTANT){
-                int pos=find_pos(op2->kind,op2->u.vid);
-                int rpos=find_pos(result->kind,result->u.vid);
-                fprintf(fp,"  li $t0, %d\n",op1->u.value);
-                if(op2->access==IR_ADDR&&!op2->is_addr){
-                    fprintf(fp,"  addi $t1, $fp, -%d\n",pos);
-                }
-                else if(op2->access==IR_POINT){
-                    fprintf(fp,"  lw $t2, -%d($fp)\n",pos);
-                    fprintf(fp,"  lw $t1, 0($t2)\n");
-                }
-                else{
-                    fprintf(fp,"  lw $t1, -%d($fp)\n",pos);
-                }
-                fprintf(fp,"  sub $t2, $t0, $t1\n");
-                fprintf(fp,"  sw $t2, -%d($fp)\n",rpos);
+                handle_op(fp,op1,1);
+                handle_op(fp,op2,2);
+                fprintf(fp,"  sub $t0, $t1, $t2\n");
             }
             else if(op2->kind==IR_CONSTANT){
-                int pos=find_pos(op1->kind,op1->u.vid);
-                int rpos=find_pos(result->kind,result->u.vid);
-                if(op1->access==IR_ADDR&&!op1->is_addr){
-                    fprintf(fp,"  addi $t1, $fp, -%d\n",pos);
-                }
-                else if(op1->access==IR_POINT){
-                    fprintf(fp,"  lw $t2, -%d($fp)\n",pos);
-                    fprintf(fp,"  lw $t1, 0($t2)\n");
+                handle_op(fp,op1,1);
+                if(op2->u.value>=32767||op2->u.value<=-32768){
+                    handle_op(fp,op2,2);
+                    fprintf(fp,"  sub $t0, $t1, $t2\n");
                 }
                 else{
-                    fprintf(fp,"  lw $t1, -%d($fp)\n",pos);
+                    fprintf(fp,"  addi $t0, $t1, -%d\n",op2->u.value);
                 }
-                fprintf(fp,"  addi $t2, $t1, -%d\n",op2->u.value);
-                fprintf(fp,"  sw $t2, -%d($fp)\n",rpos);
             }
             else{
-                int pos1=find_pos(op1->kind,op1->u.vid);
-                int pos2=find_pos(op2->kind,op2->u.vid);
-                int rpos=find_pos(result->kind,result->u.vid);
-                if(op1->access==IR_ADDR&&!op1->is_addr){
-                    fprintf(fp,"  addi $t0, $fp, -%d\n",pos1);
-                }
-                else if(op1->access==IR_POINT){
-                    fprintf(fp,"  lw $t2, -%d($fp)\n",pos1);
-                    fprintf(fp,"  lw $t0, 0($t2)\n");
-                }
-                else{
-                    fprintf(fp,"  lw $t0, -%d($fp)\n",pos1);
-                }
-                if(op2->access==IR_ADDR&&!op2->is_addr){
-                    fprintf(fp,"  addi $t1, $fp, -%d\n",pos2);
-                }
-                else if(op2->access==IR_POINT){
-                    fprintf(fp,"  lw $t2, -%d($fp)\n",pos2);
-                    fprintf(fp,"  lw $t1, 0($t2)\n");
-                }
-                else{
-                    fprintf(fp,"  lw $t1, -%d($fp)\n",pos2);
-                }
-                fprintf(fp,"  sub $t2, $t0, $t1\n");
-                fprintf(fp,"  sw $t2, -%d($fp)\n",rpos);
+                handle_op(fp,op1,1);
+                handle_op(fp,op2,2);
+                fprintf(fp,"  sub $t0, $t1, $t2\n");
             }
+            int pos=find_pos(result->kind,result->u.vid);
+            fprintf(fp,"  sw $t0, -%d($fp)\n",pos);
         }
             break;
         case IR_MUL:{
             Operand op1=cur->code->u.binop.op1;
             Operand op2=cur->code->u.binop.op2;
             Operand result=cur->code->u.binop.result;
-            if(op1->kind==IR_CONSTANT){
-                fprintf(fp,"  li $t0, %d\n",op1->u.value);
-            }
-            else{
-                int pos=find_pos(op1->kind,op1->u.vid);
-                if(op1->access==IR_ADDR&&!op1->is_addr){
-                    fprintf(fp,"  addi $t0, $fp, -%d\n",pos);
-                }
-                else if(op1->access==IR_POINT){
-                    fprintf(fp,"  lw $t2, -%d($fp)\n",pos);
-                    fprintf(fp,"  lw $t0, 0($t2)\n");
-                }
-                else{
-                    fprintf(fp,"  lw $t0, -%d($fp)\n",pos);
-                }
-            }
-            if(op2->kind==IR_CONSTANT){
-                fprintf(fp,"  li $t1, %d\n",op2->u.value);
-            }
-            else{
-                int pos=find_pos(op2->kind,op2->u.vid);
-                if(op2->access==IR_ADDR&&!op2->is_addr){
-                    fprintf(fp,"  addi $t1, $fp, -%d\n",pos);
-                }
-                else if(op2->access==IR_POINT){
-                    fprintf(fp,"  lw $t2, -%d($fp)\n",pos);
-                    fprintf(fp,"  lw $t1, 0($t2)\n");
-                }
-                else{
-                    fprintf(fp,"  lw $t1, -%d($fp)\n",pos);
-                }
-            }
             int rpos=find_pos(result->kind,result->u.vid);
-            fprintf(fp,"  mul $t2, $t0, $t1\n");
-            fprintf(fp,"  sw $t2, -%d($fp)\n",rpos);
+            if(op1->kind==IR_CONSTANT&&op2->kind==IR_CONSTANT){
+                fprintf(fp,"  li $t0, %d\n",op1->u.value*op2->u.value);
+                fprintf(fp,"  sw $t0, -%d($fp)\n",rpos);
+            }
+            else{
+                handle_op(fp,op1,1);
+                handle_op(fp,op2,2);
+                fprintf(fp,"  mul $t0, $t1, $t2\n");
+                fprintf(fp,"  sw $t0, -%d($fp)\n",rpos);
+            }
         }
             break;
         case IR_DIV:{
             Operand op1=cur->code->u.binop.op1;
             Operand op2=cur->code->u.binop.op2;
             Operand result=cur->code->u.binop.result;
-            if(op1->kind==IR_CONSTANT){
-                fprintf(fp,"  li $t0, %d\n",op1->u.value);
-            }
-            else{
-                int pos=find_pos(op1->kind,op1->u.vid);
-                if(op1->access==IR_ADDR&&!op1->is_addr){
-                    fprintf(fp,"  addi $t0, $fp, -%d\n",pos);
-                }
-                else if(op1->access==IR_POINT){
-                    fprintf(fp,"  lw $t2, -%d($fp)\n",pos);
-                    fprintf(fp,"  lw $t0, 0($t2)\n");
-                }
-                else{
-                    fprintf(fp,"  lw $t0, -%d($fp)\n",pos);
-                }
-            }
-            if(op2->kind==IR_CONSTANT){
-                fprintf(fp,"  li $t1, %d\n",op2->u.value);
-            }
-            else{
-                int pos=find_pos(op2->kind,op2->u.vid);
-                if(op2->access==IR_ADDR&&!op2->is_addr){
-                    fprintf(fp,"  addi $t1, $fp, -%d\n",pos);
-                }
-                else if(op2->access==IR_POINT){
-                    fprintf(fp,"  lw $t2, -%d($fp)\n",pos);
-                    fprintf(fp,"  lw $t1, 0($t2)\n");
-                }
-                else{
-                    fprintf(fp,"  lw $t1, -%d($fp)\n",pos);
-                }
-            }
             int rpos=find_pos(result->kind,result->u.vid);
-            fprintf(fp,"  div $t0, $t1\n");
-            fprintf(fp,"  mflo $t2\n");
-            fprintf(fp,"  sw $t2, -%d($fp)\n",rpos);
+            handle_op(fp,op1,1);
+            handle_op(fp,op2,2);
+            fprintf(fp,"  div $t1, $t2\n");
+            fprintf(fp,"  mflo $t0\n");
+            fprintf(fp,"  sw $t0, -%d($fp)\n",rpos);
         }
             break;
         case IR_GOTO:
@@ -467,19 +348,8 @@ void trans_one_code(FILE *fp,InterCodes cur){
             break;//TODO
         case IR_RETURN:{
                 Operand op=cur->code->u.unaryop.unary;
-                if(op->kind==IR_CONSTANT){
-                    fprintf(fp,"  li $v0, %d\n",op->u.value);
-                }
-                else{
-                    int pos=find_pos(op->kind,op->u.vid);
-                    if(op->access==IR_POINT){
-                        fprintf(fp,"  lw $t0, -%d($fp)\n",pos);
-                        fprintf(fp,"  lw $v0, 0($t0)\n");
-                    }
-                    else{
-                        fprintf(fp,"  lw $v0, -%d($fp)\n",pos);
-                    }
-                }
+                handle_op(fp,op,0);
+                fprintf(fp,"  move $v0, $t0\n");
                 fprintf(fp,"  jr $ra\n");
             }
             break;
@@ -488,32 +358,8 @@ void trans_one_code(FILE *fp,InterCodes cur){
             Operand y=cur->code->u.gotop.op2;//t1
             int z=cur->code->u.gotop.lable->u.lableno;
             char *relop=cur->code->u.gotop.relop->u.relopid;
-            if(x->kind==IR_CONSTANT){
-                fprintf(fp,"  li $t0, %d\n",x->u.value);
-            }
-            else{
-                int pos=find_pos(x->kind,x->u.vid);
-                if(x->access==IR_POINT){
-                    fprintf(fp,"  lw $t2, -%d($fp)\n",pos);
-                    fprintf(fp,"  lw $t0, 0($t2)\n");
-                }
-                else {
-                    fprintf(fp," lw $t0, -%d($fp)\n",pos);
-                }
-            }
-            if(y->kind==IR_CONSTANT){
-                fprintf(fp,"  li $t1, %d\n",y->u.value);
-            }
-            else{
-                int pos=find_pos(y->kind,y->u.vid);
-                if(y->access==IR_POINT){
-                    fprintf(fp,"  lw $t2, -%d($fp)\n",pos);
-                    fprintf(fp,"  lw $t1, 0($t2)\n");
-                }
-                else {
-                    fprintf(fp," lw $t1, -%d($fp)\n",pos);
-                }
-            }
+            handle_op(fp,x,0);
+            handle_op(fp,y,1);
             if(strcmp(relop,"==")==0){
                 fprintf(fp,"  beq $t0, $t1, label%d\n",z);
             }
@@ -546,13 +392,9 @@ void trans_one_code(FILE *fp,InterCodes cur){
             break;
         case IR_WRITE:{
             Operand x=cur->code->u.unaryop.unary;
-            if(x->kind==IR_CONSTANT){
-                fprintf(fp,"  li $a0, %d\n",x->u.value);
-            }
-            else{
-                int pos=find_pos(x->kind,x->u.vid);
-                fprintf(fp,"  lw $a0, -%d($fp)\n",pos);
-            }
+            handle_op(fp,x,0);
+            fprintf(fp,"  move $a0, $t0\n");
+
             fprintf(fp,"  jal write\n");
             fprintf(fp,"  move $sp, $fp\n");
             fprintf(fp,"  lw $fp, 0($sp)\n");
@@ -562,27 +404,9 @@ void trans_one_code(FILE *fp,InterCodes cur){
         case IR_ARG:{
             Operand x=cur->code->u.unaryop.unary;
             int pos=find_pos(x->kind,x->u.vid);
-            if(x->access==IR_ADDR&&!x->is_addr){
-                fprintf(fp,"  addi $sp, -4\n");
-                fprintf(fp,"  addi $t0, $fp, -%d\n",pos);
-                fprintf(fp,"  sw $t0, 0($sp)\n");
-            }
-            else if(x->access==IR_POINT){
-                fprintf(fp,"  addi $sp, -4\n");
-                fprintf(fp,"  lw $t1, -%d($fp)\n",pos);
-                fprintf(fp,"  lw $t0, 0($t1)\n");
-                fprintf(fp,"  sw $t0, 0($sp)\n");
-            }
-            else if(x->kind==IR_CONSTANT){
-                fprintf(fp,"  addi $sp, -4\n");
-                fprintf(fp,"  li $t0, %d\n",x->u.value);
-                fprintf(fp,"  sw $t0, 0($sp)\n");
-            }
-            else{
-                fprintf(fp,"  addi $sp, -4\n");
-                fprintf(fp,"  lw $t0, -%d($fp)\n",pos);
-                fprintf(fp,"  sw $t0, 0($sp)\n");
-            }
+            fprintf(fp,"  addi $sp, -4\n");
+            handle_op(fp,x,0);
+            fprintf(fp,"  sw $t0, 0($sp)\n");
         }
             break;
     }
@@ -597,7 +421,6 @@ void trans_codes(FILE *fp,InterCodes head){
 	}
     return;
 }
-
 
 void init_data(FILE* fp){
     fprintf(fp,".data\n");
