@@ -385,6 +385,22 @@ Operand trans_Exp(Node *root){
         debug("Exp -> Exp OP Exp\n");//加减乘除
         Operand t1=trans_Exp(root->child);
         Operand t2=trans_Exp(root->child->next->next);
+        if(t1->access==IR_POINT){
+            Operand nt1=new_tmpop();
+            InterCodes nnode=new_intercode(IR_ASSIGN);
+            nnode->code->u.assign.left=nt1;
+            nnode->code->u.assign.right=t1;
+            t1=nt1;
+            insert_code(nnode);
+        }
+        if(t2->access==IR_POINT){
+            Operand nt2=new_tmpop();
+            InterCodes nnode=new_intercode(IR_ASSIGN);
+            nnode->code->u.assign.left=nt2;
+            nnode->code->u.assign.right=t2;
+            t2=nt2;
+            insert_code(nnode);
+        }
         Operand t3=new_tmpop();
         InterCodes node=new_intercode(IR_ADD);
         char *tmpchar=root->child->next->node_info;
@@ -475,6 +491,22 @@ Operand trans_Exp(Node *root){
         debug("Exp -> ID LP Args RP\n");
         if(strcmp(root->child->info_char,"write")==0){
             Operand op=trans_Exp(root->child->next->next->child);
+            if(op->access==IR_ADDR&&!op->is_addr){
+                Operand t=new_tmpop();
+                InterCodes tnode=new_intercode(IR_ASSIGN);
+                tnode->code->u.assign.left=t;
+                tnode->code->u.assign.right=op;
+                insert_code(tnode);
+                op=t;
+            }
+            else if(op->access==IR_POINT){
+                Operand t=new_tmpop();
+                InterCodes tnode=new_intercode(IR_ASSIGN);
+                tnode->code->u.assign.left=t;
+                tnode->code->u.assign.right=op;
+                insert_code(tnode);
+                op=t;
+            }
             InterCodes node=new_intercode(IR_WRITE);
             node->code->u.unaryop.unary=op;
             insert_code(node);
@@ -539,7 +571,23 @@ InterCodes trans_args(Node *root){
 void trans_Cond(Node *root,Operand label1,Operand label2){
     if(gencheck(root,3,"Exp","RELOP","Exp")){
         Operand t1=trans_Exp(root->child);//code1
+        if(t1->access==IR_POINT){
+            Operand nt1=new_tmpop();
+            InterCodes nnode=new_intercode(IR_ASSIGN);
+            nnode->code->u.assign.left=nt1;
+            nnode->code->u.assign.right=t1;
+            t1=nt1;
+            insert_code(nnode);
+        }
         Operand t2=trans_Exp(root->child->next->next);//code2
+        if(t2->access==IR_POINT){
+            Operand nt2=new_tmpop();
+            InterCodes nnode=new_intercode(IR_ASSIGN);
+            nnode->code->u.assign.left=nt2;
+            nnode->code->u.assign.right=t2;
+            t2=nt2;
+            insert_code(nnode);
+        }
         Operand relop=get_relop(root->child->next->info_char);
         InterCodes node1=new_intercode(IR_IFGOTO);
         node1->code->u.gotop.op1=t1;
