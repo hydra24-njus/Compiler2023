@@ -5,7 +5,7 @@ struct SymbolNode_ *hashtable[TABLE_SIZE];
 struct SymbolNode_ *structable[STRUCT_SIZE];
 struct FunctionList_ *functable;
 struct ScopeList_ *scopelist;
-static _vid_count=0;
+static int _vid_count=0;
 int hash(const char *name,int size){
     unsigned int val=0,i;
     for(;*name;++name){

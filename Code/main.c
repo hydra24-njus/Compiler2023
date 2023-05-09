@@ -2,6 +2,8 @@
 #include "debug.h"
 #include "semantic.h"
 #include "ir.h"
+#include "asm.h"
+
 extern int yylineno;
 extern int yyparse();
 extern void yyrestart(FILE*);
@@ -36,6 +38,6 @@ int main(int argc,char** argv){
         debug("has semantic error!\n");
         return 1;
     }
-    print_ir(fp);
+    print_asm(fp);
     return 0;
 }

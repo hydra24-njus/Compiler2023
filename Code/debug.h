@@ -3,3 +3,4 @@
 #else
 #define debug(format,...)
 #endif
+#include <assert.h>
