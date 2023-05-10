@@ -1,8 +1,9 @@
-#include<stdio.h>
+#include <stdio.h>
 #include "debug.h"
 #include "semantic.h"
 #include "ir.h"
 #include "asm.h"
+#include "input.h"
 
 extern int yylineno;
 extern int yyparse();
@@ -17,12 +18,13 @@ int main(int argc,char** argv){
         perror(argv[1]);
         return 1;
     }
-    
     FILE *fp=fopen(argv[2],"wt+");
     if(!fp){
         perror(argv[2]);
         return 1;
     }
+    //注释部分为lab1-lab4代码，在lab5中不会使用。
+    /*
     yyrestart(f);//将flex输入文件的指针设为f，并指向文件开头。
     yyparse();//对输入文件进行分析
     debug("----------lexical and syntax pass----------\n");
@@ -40,5 +42,7 @@ int main(int argc,char** argv){
     }
     //print_ir(stdout);
     print_asm(fp);
+    */
+    input(f);
     return 0;
 }
