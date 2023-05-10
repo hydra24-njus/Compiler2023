@@ -1,6 +1,6 @@
-for cmm in /share/Tests1/Tests/*.cmm;
+for ir in ../Test/*.ir;
 do 
-echo -e "\n\n============ ${cmm#../Test/} ============\n"
-var=${cmm#/share/Tests1/Tests};
-./parser $cmm /share/lab3-test/${var%.cmm}.ir;
+#echo -e "\n\n============ ${ir#../Test/} ============\n"
+#./parser $ir ${ir}1;
+diff $ir ${ir}1
 done

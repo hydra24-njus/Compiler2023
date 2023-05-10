@@ -41,7 +41,7 @@ void print_op(FILE *fp,Operand op){
                         break;
         case IR_FUNCNAME:
                         if(strcmp(op->u.funcname,"main")==0)fprintf(fp,"%s",op->u.funcname);
-                        else fprintf(fp,"f%s",op->u.funcname);
+                        else fprintf(fp,"%s",op->u.funcname);
                         break;
         case IR_TMPOP:
                         fprintf(fp,"t%d",op->u.tmpno);
@@ -50,7 +50,7 @@ void print_op(FILE *fp,Operand op){
                         fprintf(fp,"%s",op->u.relopid);
                         break;
         case IR_LABELOP:
-                        fprintf(fp,"lable%d",op->u.lableno);
+                        fprintf(fp,"label%d",op->u.lableno);
                         break;
         default:        printf("in op:%d\n",op->kind);assert(0);break;
     }

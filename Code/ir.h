@@ -9,7 +9,6 @@ struct Operand_ {
     enum { IR_ADDR=-1, IR_NOMAL, IR_POINT,} access;
     int is_addr;
     union {
-        char *varname;
         int vid;
         char *funcname;
         int value;

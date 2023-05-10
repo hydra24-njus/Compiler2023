@@ -7,4 +7,5 @@
 //从文件读入中间代码并转化为ir的InterCodes_双向链表
 struct InterCodes_ *input(FILE *fp);
 
+
 #endif
