@@ -4,7 +4,7 @@
 #include "ir.h"
 #include "asm.h"
 #include "input.h"
-
+#include "optimize.h"
 extern int yylineno;
 extern int yyparse();
 extern void yyrestart(FILE*);
@@ -44,5 +44,6 @@ int main(int argc,char** argv){
     print_asm(fp);
     */
     input(f);
+    _build_bb();
     return 0;
 }

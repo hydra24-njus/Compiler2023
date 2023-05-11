@@ -6,8 +6,8 @@
         "request": "launch",
         "program": "${workspaceFolder}/parser",
         "args": [
-            "../Test/test3.cmm",
-            "test3.ir"
+            "test.ir",
+            "test1.ir"
         ],
         "stopAtEntry": false,
         "cwd": "${fileDirname}",
