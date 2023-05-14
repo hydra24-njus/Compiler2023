@@ -1,5 +1,5 @@
 #include "optimize.h"
-
+#include <assert.h>
 int *_label_table=NULL;
 int *_is_leader=NULL;
 int *_L=NULL;
@@ -61,15 +61,37 @@ void build_basic_blocks(){
     free(_is_leader);
     free(_label_table);
 }
-void print_bb(){
-    int i=0;
-    while(_L[i]!=-1){
-        printf("%d\n",_L[i]+1);
-        i++;
+
+
+extern void print_op(FILE *fp,Operand op);
+void opt_local_exp_true(InterCodes start,InterCodes end){
+    
+}
+
+void opt_local_exp(){
+    int cnt=0;
+    InterCodes start=ir_head;
+    InterCodes end=ir_head;
+    while(_L[cnt]!=-1){
+        assert(_L[cnt]!=-1);
+        if(_L[cnt+1]==-1){
+            end=start;
+            opt_local_exp_true(start,NULL);
+        }
+        else{
+            end=start;
+            for(int i=_L[cnt];i<_L[cnt+1];i++){
+                end=end->next;
+            }
+            opt_local_exp_true(start,end);
+        }
+        start=end;
+        cnt++;
     }
 }
+
 void _build_bb(){
     get_label_table();
     build_basic_blocks();
-    print_bb();
+    opt_local_exp();
 }
