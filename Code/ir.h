@@ -40,7 +40,7 @@ struct InterCode_{
     } kind;
     union {
         struct { Operand unary; }                       unaryop;
-        struct { Operand right, left; }                 assign;
+        struct { Operand left, right; }                 assign;
         struct { Operand result, op1, op2; }            binop;
         struct { Operand op1, op2, relop, lable; }      gotop;
     } u;

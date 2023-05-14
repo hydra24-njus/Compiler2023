@@ -1,8 +1,8 @@
 #include "optimize.h"
 #include <assert.h>
-int *_label_table=NULL;
-int *_is_leader=NULL;
-InterCodes *_L=NULL;
+int *_label_table=NULL;//label的数组 标号为i的label在ir的第(_label_table[i]+1)行
+int *_is_leader=NULL;//指示某行是否为基本块头，第i行若是基本块开头则_is_leader[i]==1
+InterCodes *_L=NULL;//基本块指针。若ir有k个基本块，_L长度为k+1.其中_L[i]指向第i个基本块头部
 int _ir_cnt=0;
 extern struct InterCodes_ *ir_head,*ir_tail;
 int find_max_label(){
@@ -54,6 +54,7 @@ void build_basic_blocks(){
     for(struct InterCodes_ *i=ir_head;i!=NULL;i=i->next){
         if(_is_leader[ir_cnt]==1){
             _L[k]=i;
+            i->ishead=1;
             k++;
         }
         ir_cnt++;
@@ -62,74 +63,32 @@ void build_basic_blocks(){
     free(_label_table);
 }
 
-
-extern void print_op(FILE *fp,Operand op);
-void opt_local_exp_true(InterCodes start,InterCodes end){
-    InterCodes tmp=start;
-    FILE *fp=stdout;
-    printf("\n");
-    while(tmp!=end){
-        InterCode ic=tmp->code;
-        switch(ic->kind){
-            case IR_LABEL:      fprintf(fp,"LABEL ");print_op(fp,ic->u.unaryop.unary);fprintf(fp," : \n");
-                                break;
-            case IR_FUNCTION:   fprintf(fp,"FUNCTION ");print_op(fp,ic->u.unaryop.unary);fprintf(fp," : \n");
-                                break;
-            case IR_PARAM:      fprintf(fp,"PARAM ");print_op(fp,ic->u.unaryop.unary);fprintf(fp," \n");
-                                break;
-            case IR_RETURN:     fprintf(fp,"RETURN ");print_op(fp,ic->u.unaryop.unary);fprintf(fp," \n");
-                                break;
-            case IR_ASSIGN:     print_op(fp,ic->u.assign.left);fprintf(fp," := ");print_op(fp,ic->u.assign.right);fprintf(fp," \n");
-                                break;
-            case IR_DEC:        fprintf(fp,"DEC ");print_op(fp,ic->u.assign.left);fprintf(fp," %d \n",ic->u.assign.right->u.value);
-                                break;
-            case IR_CALL:       print_op(fp,ic->u.assign.left);fprintf(fp," := CALL ");print_op(fp,ic->u.assign.right);fprintf(fp," \n");
-                                break;
-            case IR_READ:       fprintf(fp,"READ ");print_op(fp,ic->u.unaryop.unary);fprintf(fp," \n");
-                                break;
-            case IR_ARG:        fprintf(fp,"ARG ");print_op(fp,ic->u.unaryop.unary);fprintf(fp," \n");
-                                break;
-            case IR_WRITE:      fprintf(fp,"WRITE ");print_op(fp,ic->u.unaryop.unary);fprintf(fp," \n");
-                                break;
-            case IR_IFGOTO:     fprintf(fp,"IF ");
-                                print_op(fp,ic->u.gotop.op1);fprintf(fp," ");
-                                print_op(fp,ic->u.gotop.relop);fprintf(fp," ");
-                                print_op(fp,ic->u.gotop.op2);fprintf(fp," GOTO ");
-                                print_op(fp,ic->u.gotop.lable);fprintf(fp," \n");
-                                break;
-            case IR_GOTO:       fprintf(fp,"GOTO ");
-                                print_op(fp,ic->u.unaryop.unary);fprintf(fp," \n");
-                                break;
-            case IR_ADD:        print_op(fp,ic->u.binop.result);fprintf(fp," := ");
-                                print_op(fp,ic->u.binop.op1);fprintf(fp," + ");
-                                print_op(fp,ic->u.binop.op2);fprintf(fp," \n");
-                                break;
-            case IR_SUB:        print_op(fp,ic->u.binop.result);fprintf(fp," := ");
-                                print_op(fp,ic->u.binop.op1);fprintf(fp," - ");
-                                print_op(fp,ic->u.binop.op2);fprintf(fp," \n");
-                                break;
-            case IR_MUL:        print_op(fp,ic->u.binop.result);fprintf(fp," := ");
-                                print_op(fp,ic->u.binop.op1);fprintf(fp," * ");
-                                print_op(fp,ic->u.binop.op2);fprintf(fp," \n");
-                                break;
-            case IR_DIV:        print_op(fp,ic->u.binop.result);fprintf(fp," := ");
-                                print_op(fp,ic->u.binop.op1);fprintf(fp," / ");
-                                print_op(fp,ic->u.binop.op2);fprintf(fp," \n");
-                                break;
-            default:            printf("in code:%d\n",ic->kind);assert(0);break;
-        }
-        tmp=tmp->next;
-    }
+int eq_operand(Operand a,Operand b){
+    if(a->kind!=b->kind)return 0;
+    if(a->access!=b->access)return 0;
+    if(a->is_addr!=b->is_addr)return 0;
+    if(a->u.vid!=b->u.vid)return 0;
+    return 1;
 }
 
-void opt_local_exp(){
+int common_subexp(InterCodes start,InterCodes end){
+
+}
+
+extern void print_op(FILE *fp,Operand op);
+void opt_local_true(InterCodes start,InterCodes end){
+    //TODO:建立有向图并优化
+    
+}
+
+void opt_local(){
     int cnt=0;
     InterCodes start=ir_head;
     InterCodes end=ir_head;
     while(_L[cnt]!=NULL){
         start=_L[cnt];
         end=_L[cnt+1];
-        opt_local_exp_true(start,end);
+        opt_local_true(start,end);
         cnt++;
     }
 }
@@ -137,5 +96,5 @@ void opt_local_exp(){
 void _build_bb(){
     get_label_table();
     build_basic_blocks();
-    opt_local_exp();
+    opt_local();
 }
