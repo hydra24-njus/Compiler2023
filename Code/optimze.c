@@ -145,45 +145,243 @@ int eq_operand(Operand a,Operand b,int flag){
     return 1;
 }
 
-struct  DGAnode_ *DGA_search(Operand op,struct DGAnodelist_ list,int flag){
-    struct DGAnode_ *ret=NULL;
+struct  DAGnode_ *DAG_search(Operand op,struct DAGnodelist_ *list,int flag){
+    struct DAGnode_ *ret=NULL;
     int ver=0;
-    for(int i=0;i<list.DGA_cnt;i++){
-        if(eq_operand(op,list.array[i]->op,flag)&&list.array[i]->op->version>=ver){
-            ret=list.array[i];
-            ver=ret->op->version;
+    for(int i=0;i<list->DAG_cnt;i++){
+        if(eq_operand(op,list->array[i]->op,flag)&&list->array[i]->op->version>=ver){
+            ret=list->array[i];
+            ver=ret->op->version;//返回图中最新的一个
         }
     }
     return ret;
 }
-void addDGAnode(struct DGAnode_ *node,struct DGAnodelist_ list){
-    if(list.array==NULL){
-        list.capacity=64;
-        list.DGA_cnt=0;
-        list.array=malloc(sizeof(struct DGAnode_*)*64);
+void addDAGnode(struct DAGnode_ *node,struct DAGnodelist_ *list){
+    if(list->array==NULL){
+        list->capacity=64;
+        list->DAG_cnt=0;
+        list->array=malloc(sizeof(struct DAGnode_*)*64);
     }
-    else if(list.DGA_cnt==list.capacity){
-        struct DGAnode_ ** tmp=malloc(sizeof(struct DGAnode_*)*list.capacity*2);
-        memcpy(tmp,list.array,sizeof(struct DGAnode_*)*list.capacity);
-        list.capacity*=2;
-        free(list.array);
-        list.array=tmp;
+    else if(list->DAG_cnt==list->capacity){
+        struct DAGnode_ ** tmp=malloc(sizeof(struct DAGnode_*)*list->capacity*2);
+        memcpy(tmp,list->array,sizeof(struct DAGnode_*)*list->capacity);
+        list->capacity*=2;
+        free(list->array);
+        list->array=tmp;
     }
-    list.array[list.DGA_cnt++]=node;
+    list->array[list->DAG_cnt++]=node;
     return;
 }
-struct DGAnode_ buildDGANode(Operand op){
-    
+struct DAGnode_ *buildDAGnode_leaf(Operand op){
+    struct DAGnode_ *node=malloc(sizeof(struct DAGnode_));
+    node->kind=DAG_LEAF;
+    node->op=op;
+    node->op->version=0;
+    return node;
+}
+void creatDAGnode(InterCodes code,struct DAGnodelist_ *list){
+    if(code->code->kind==IR_ASSIGN){
+        Operand left=code->code->u.assign.left;
+        Operand right=code->code->u.assign.right;
+        if(left->access==IR_POINT||right->access==IR_POINT||right->access==IR_ADDR){
+            //如果是变量是指针，无法判断变量指向的内容版本
+            //直接跳过该句ir
+            //注意：如果其右值是重复表达式，会在之后的优化中被替换
+            return;
+        }
+        struct DAGnode_ *cur_node=DAG_search(left,list,1);
+        struct DAGnode_ *new_node=malloc(sizeof(struct DAGnode_));
+        new_node->kind=DAG_ASSIGN;
+        new_node->op=left;
+        if(cur_node==NULL){
+            left->version=0;
+        }
+        else{
+            left->version=cur_node->op->version+1;
+        }
+        struct DAGnode_ *child=DAG_search(right,list,0);//获取当前最新的节点（右值一定是版本号最大的一个
+        if(child==NULL){
+            child=buildDAGnode_leaf(right);
+            addDAGnode(child,list);
+        }
+        else{
+            right->version=child->op->version;
+        }
+        new_node->child[0]=child;
+        addDAGnode(new_node,list);
+    }
+    else if(code->code->kind>=11&&code->code->kind<=14){//加减乘除
+        Operand result=code->code->u.binop.result;
+        Operand op1=code->code->u.binop.op1;
+        Operand op2=code->code->u.binop.op2;
+        if(result->access==IR_POINT||
+           op1->access==IR_POINT||op1->access==IR_ADDR||
+           op2->access==IR_POINT||op2->access==IR_ADDR)
+            return;
+        struct DAGnode_ *newnode=malloc(sizeof(struct DAGnode_));
+        newnode->kind=code->code->kind-10;//DAG_PLUS=1,IR_PLUS=11
+        struct DAGnode_ *curnode=DAG_search(result,list,0);
+        if(curnode==NULL){
+            result->version=0;
+        }
+        else{
+            result->version=curnode->op->version+1;
+        }
+        newnode->op=result;
+        struct DAGnode_ *child1=DAG_search(op1,list,0),*child2=DAG_search(op2,list,0);
+        if(child1==NULL){
+            child1=buildDAGnode_leaf(op1);
+            addDAGnode(child1,list);
+        }
+        else{
+            op1->version=child1->op->version;
+        }
+        if(child2==NULL){
+            child2=buildDAGnode_leaf(op2);
+            addDAGnode(child2,list);
+        }
+        else{
+            op2->version=child2->op->version;
+        }
+        newnode->child[0]=child1;
+        newnode->child[1]=child2;
+        addDAGnode(newnode,list);
+    }
+    else if(code->code->kind==IR_IFGOTO){
+        Operand op1=code->code->u.gotop.op1;
+        Operand op2=code->code->u.gotop.op2;
+        struct DAGnode_ *node=NULL;
+        node=DAG_search(op1,list,0);
+        if(node==NULL)op1->version=0;
+        else op1->version=node->op->version;
+        node=NULL;
+        node=DAG_search(op2,list,0);
+        if(node==NULL)op2->version=0;
+        else op2->version=node->op->version;
+    }
+    else if(code->code->kind==IR_ARG||code->code->kind==IR_WRITE||code->code->kind==IR_RETURN){
+        Operand op=code->code->u.unaryop.unary;
+        struct DAGnode_ *node=DAG_search(op,list,0);
+        if(node==NULL)op->version=0;
+        else op->version=node->op->version;
+    }
+    else if(code->code->kind==IR_READ){
+        Operand op=code->code->u.unaryop.unary;
+        struct DAGnode_ *node=DAG_search(op,list,0);
+        struct DAGnode_ *newnode=malloc(sizeof(struct DAGnode_));
+        newnode->kind=DAG_READ;
+        newnode->op=op;
+        if(node==NULL)newnode->op->version=0;
+        else newnode->op->version=node->op->version+1;
+        addDAGnode(newnode,list);
+    }
+
+}
+void replaceOperand_true(Operand src,Operand dst){
+    src->kind=dst->kind;
+    src->version=dst->version;
+    src->u.vid=dst->u.vid;
+}
+void replaceOperand(Operand src,Operand dst,struct BasicBlock_ *bb){
+    InterCodes code=bb->start;
+    while(code!=bb->end){
+        switch(code->code->kind){
+            case IR_ASSIGN:{
+                Operand right=code->code->u.assign.right;
+                if(eq_operand(right,src,1)){
+                    replaceOperand_true(right,dst);
+                }
+            }break;
+            case IR_ADD:
+            case IR_SUB:
+            case IR_MUL:
+            case IR_DIV:{
+                Operand op1=code->code->u.binop.op1;
+                Operand op2=code->code->u.binop.op2;
+                if(eq_operand(op1,src,1)){
+                    replaceOperand_true(op1,dst);
+                }
+                if(eq_operand(op2,src,1)){
+                    replaceOperand_true(op2,dst);
+                }
+            }break;
+            case IR_ARG:
+            case IR_READ:
+            case IR_RETURN:{
+                Operand op=code->code->u.unaryop.unary;
+                if(eq_operand(op,src,1)){
+                    replaceOperand_true(op,dst);
+                }
+            }break;
+            case IR_IFGOTO:{
+                Operand op1=code->code->u.gotop.op1;
+                Operand op2=code->code->u.gotop.op2;
+                if(eq_operand(op1,src,1)){
+                    replaceOperand_true(op1,dst);
+                }
+                if(eq_operand(op2,src,1)){
+                    replaceOperand_true(op2,dst);
+                }
+            }break;
+        }
+        code=code->next;
+    }
+}
+void DAG_debugger(struct DAGnodelist_ *list){
+    for(int i=0;i<list->DAG_cnt;i++){
+        printf("%d: ",i);
+        print_op(stdout,list->array[i]->op);
+        printf("(ver:%d)\n",list->array[i]->op->version);
+    }
+}
+struct DAGnodelist_ *buildDAG(struct BasicBlock_ *bb){
+    InterCodes code=bb->start;
+    struct DAGnodelist_ *list=malloc(sizeof(struct DAGnodelist_));
+    list->array=NULL;
+    list->DAG_cnt=0;
+    list->capacity=0;
+    while(code!=bb->end){
+        creatDAGnode(code,list);
+        code=code->next;
+    }
+    return list;
+}
+void deleteSubExp(struct BasicBlock_ *bb){
+    struct DAGnodelist_ *list=buildDAG(bb);
+    DAG_debugger(list);
+    for(int i=list->DAG_cnt-1;i>=0;i--){
+        if(list->array[i]->kind>=1&&list->array[i]->kind<=4){
+            for(int j=0;j<i;j++){
+                if(list->array[j]->kind!=list->array[i]->kind)continue;
+                Operand src1=list->array[i]->child[0];
+                Operand src2=list->array[i]->child[1];
+                Operand dst1=list->array[j]->child[0];
+                Operand dst2=list->array[j]->child[1];
+                if(eq_operand(src1,dst1,1)&&eq_operand(src2,dst2,1)){
+                    list->array[i]->kind = DAG_ASSIGN;
+                    list->array[i]->child[0] = list->array[j];
+                    list->array[i]->child[1] = NULL;
+                    replaceOperand(list->array[i]->op,list->array[j]->op,bb);
+                    break;
+                }
+                else if((list->array[i]->kind==DAG_PLUS||list->array[i]->kind==DAG_MUL)){
+                    if(eq_operand(src1,dst2,1)&&eq_operand(src2,dst1,1)){
+                        list->array[i]->kind = DAG_ASSIGN;
+                        list->array[i]->child[0] = list->array[j];
+                        list->array[i]->child[1] = NULL;
+                        replaceOperand(list->array[i]->op,list->array[j]->op,bb);
+                        break;
+                    }
+                }
+            }
+        }
+    }
 }
 
-
-
-int common_subexp(InterCodes start,InterCodes end){
-
-}
 
 void _build_bblist(){
     get_label_table();
     build_basic_blocks();
-    //print_bb();
+    deleteSubExp(&(bblist.array[0]));
+    print_bb();
 }

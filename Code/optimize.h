@@ -17,15 +17,15 @@ struct BB_List_{
     int bb_cnt;
 };
 
-struct DGAnode_{
-    enum{DGA_ASSIGN,DGA_PLUS,DGA_SUB,DGA_MUL,DGA_DIV,DGA_LEAF}kind;
+struct DAGnode_{
+    enum{DAG_ASSIGN,DAG_PLUS,DAG_SUB,DAG_MUL,DAG_DIV,DAG_LEAF,DAG_READ}kind;
     Operand op;
-    struct DGAnode_ * child[2];
+    struct DAGnode_ * child[2];
 };
 
-struct DGAnodelist_{
-    struct DGAnode_ **array;
-    int DGA_cnt;
+struct DAGnodelist_{
+    struct DAGnode_ **array;
+    int DAG_cnt;
     int capacity;
 };
 
