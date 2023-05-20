@@ -6,17 +6,28 @@
 struct BasicBlock_{
     struct InterCodes_ * start;
     struct InterCodes_ * end;
+    int dead;
+    struct BasicBlock_ *next[2];
+    struct BasicBlock_ **pre;
+    int precnt;
 };
 
-struct node_{
-    int kind;// 0:常量 1:t 2:v
-    union{
-        int id;
-        int value;
-    };//若是常量则为value;变量为id
-    int cnt;//若是常量此项为0
-}
+struct BB_List_{
+    struct BasicBlock_ *array;
+    int bb_cnt;
+};
 
-void _build_bb();
+struct DGAnode_{
+    enum{DGA_ASSIGN,DGA_PLUS,DGA_SUB,DGA_MUL,DGA_DIV,DGA_LEAF}kind;
+    Operand op;
+    struct DGAnode_ * child[2];
+};
 
+struct DGAnodelist_{
+    struct DGAnode_ **array;
+    int DGA_cnt;
+    int capacity;
+};
+
+void _build_bblist();
 #endif

@@ -8,6 +8,7 @@ struct Operand_ {
     enum { IR_VARIABLE, IR_CONSTANT, IR_FUNCNAME, IR_TMPOP, IR_LABELOP, IR_RELOP } kind;
     enum { IR_ADDR=-1, IR_NOMAL, IR_POINT,} access;
     int is_addr;
+    int version;
     union {
         int vid;
         char *funcname;

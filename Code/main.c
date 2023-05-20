@@ -44,6 +44,6 @@ int main(int argc,char** argv){
     print_asm(fp);
     */
     input(f);
-    _build_bb();
+    _build_bblist();
     return 0;
 }
