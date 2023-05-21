@@ -55,7 +55,6 @@ void build_basic_blocks(){
     for(struct InterCodes_ *i=ir_head;i!=NULL;i=i->next){
         if(_is_leader[ir_cnt]==1){
             _L[k]=i;
-            i->ishead=1;
             k++;
         }
         ir_cnt++;
@@ -78,8 +77,8 @@ void print_bb(){
     FILE *fp=stdout;
     for(int i=0;i<bblist.bb_cnt;i++){
         InterCodes tmp=bblist.array[i].start;
-        printf("\t\tbb%d\n",i);
         while(tmp!=bblist.array[i].end){
+            if(tmp->dead==1){tmp=tmp->next;continue;}
             InterCode ic=tmp->code;
             switch(ic->kind){
             case IR_LABEL:      fprintf(fp,"LABEL ");print_op(fp,ic->u.unaryop.unary);fprintf(fp," : \n");
@@ -136,12 +135,13 @@ void print_bb(){
 //比较两个operand是否相等，flag为0不比较version
 int eq_operand(Operand a,Operand b,int flag){
     if(a==NULL && b==NULL)return 1;
-    else if(a==NULL||b==NULL)return 0;
-    else if(flag==1&&a->version!=b->version)return 0;
+    if(a==NULL||b==NULL)return 0;
+    if(flag==1&&a->version!=b->version)return 0;
     if(a->kind!=b->kind)return 0;
+    if(a->u.vid!=b->u.vid)return 0;
+    if(flag==2)return 1;
     if(a->access!=b->access)return 0;
     if(a->is_addr!=b->is_addr)return 0;
-    if(a->u.vid!=b->u.vid)return 0;
     return 1;
 }
 
@@ -152,6 +152,7 @@ struct  DAGnode_ *DAG_search(Operand op,struct DAGnodelist_ *list,int flag){
         if(eq_operand(op,list->array[i]->op,flag)&&list->array[i]->op->version>=ver){
             ret=list->array[i];
             ver=ret->op->version;//返回图中最新的一个
+            if(flag==1)break;
         }
     }
     return ret;
@@ -189,7 +190,7 @@ void creatDAGnode(InterCodes code,struct DAGnodelist_ *list){
             //注意：如果其右值是重复表达式，会在之后的优化中被替换
             return;
         }
-        struct DAGnode_ *cur_node=DAG_search(left,list,1);
+        struct DAGnode_ *cur_node=DAG_search(left,list,0);
         struct DAGnode_ *new_node=malloc(sizeof(struct DAGnode_));
         new_node->kind=DAG_ASSIGN;
         new_node->op=left;
@@ -277,18 +278,28 @@ void creatDAGnode(InterCodes code,struct DAGnodelist_ *list){
     }
 
 }
+Operand createConstOp(int x){
+    Operand ret=malloc(sizeof(struct Operand_));
+    ret->kind=IR_CONSTANT;
+    ret->u.value=x;
+    ret->version=0;
+    return ret;
+}
 void replaceOperand_true(Operand src,Operand dst){
     src->kind=dst->kind;
     src->version=dst->version;
     src->u.vid=dst->u.vid;
 }
-void replaceOperand(Operand src,Operand dst,struct BasicBlock_ *bb){
+int replaceOperand(Operand src,Operand dst,struct BasicBlock_ *bb){
+    int flag=0;
     InterCodes code=bb->start;
     while(code!=bb->end){
+        if(code->dead==1){code=code->next;continue;}
         switch(code->code->kind){
             case IR_ASSIGN:{
                 Operand right=code->code->u.assign.right;
                 if(eq_operand(right,src,1)){
+                    flag++;
                     replaceOperand_true(right,dst);
                 }
             }break;
@@ -299,9 +310,11 @@ void replaceOperand(Operand src,Operand dst,struct BasicBlock_ *bb){
                 Operand op1=code->code->u.binop.op1;
                 Operand op2=code->code->u.binop.op2;
                 if(eq_operand(op1,src,1)){
+                    flag++;
                     replaceOperand_true(op1,dst);
                 }
                 if(eq_operand(op2,src,1)){
+                    flag++;
                     replaceOperand_true(op2,dst);
                 }
             }break;
@@ -310,6 +323,7 @@ void replaceOperand(Operand src,Operand dst,struct BasicBlock_ *bb){
             case IR_RETURN:{
                 Operand op=code->code->u.unaryop.unary;
                 if(eq_operand(op,src,1)){
+                    flag++;
                     replaceOperand_true(op,dst);
                 }
             }break;
@@ -317,15 +331,18 @@ void replaceOperand(Operand src,Operand dst,struct BasicBlock_ *bb){
                 Operand op1=code->code->u.gotop.op1;
                 Operand op2=code->code->u.gotop.op2;
                 if(eq_operand(op1,src,1)){
+                    flag++;
                     replaceOperand_true(op1,dst);
                 }
                 if(eq_operand(op2,src,1)){
+                    flag++;
                     replaceOperand_true(op2,dst);
                 }
             }break;
         }
         code=code->next;
     }
+    return flag;
 }
 void DAG_debugger(struct DAGnodelist_ *list){
     for(int i=0;i<list->DAG_cnt;i++){
@@ -341,23 +358,31 @@ struct DAGnodelist_ *buildDAG(struct BasicBlock_ *bb){
     list->DAG_cnt=0;
     list->capacity=0;
     while(code!=bb->end){
+        if(code->dead==1){code=code->next;continue;}
         creatDAGnode(code,list);
         code=code->next;
     }
     return list;
 }
-void deleteSubExp(struct BasicBlock_ *bb){
+void unbuildDAG(struct DAGnodelist_ *list){
+    free(list->array);
+    free(list);
+    return;
+}
+int deleteSubExp(struct BasicBlock_ *bb){
+    int flag=0;
     struct DAGnodelist_ *list=buildDAG(bb);
-    DAG_debugger(list);
+    //DAG_debugger(list);
     for(int i=list->DAG_cnt-1;i>=0;i--){
         if(list->array[i]->kind>=1&&list->array[i]->kind<=4){
             for(int j=0;j<i;j++){
                 if(list->array[j]->kind!=list->array[i]->kind)continue;
-                Operand src1=list->array[i]->child[0];
-                Operand src2=list->array[i]->child[1];
-                Operand dst1=list->array[j]->child[0];
-                Operand dst2=list->array[j]->child[1];
+                Operand src1=list->array[i]->child[0]->op;
+                Operand src2=list->array[i]->child[1]->op;
+                Operand dst1=list->array[j]->child[0]->op;
+                Operand dst2=list->array[j]->child[1]->op;
                 if(eq_operand(src1,dst1,1)&&eq_operand(src2,dst2,1)){
+                    flag=1;
                     list->array[i]->kind = DAG_ASSIGN;
                     list->array[i]->child[0] = list->array[j];
                     list->array[i]->child[1] = NULL;
@@ -366,6 +391,7 @@ void deleteSubExp(struct BasicBlock_ *bb){
                 }
                 else if((list->array[i]->kind==DAG_PLUS||list->array[i]->kind==DAG_MUL)){
                     if(eq_operand(src1,dst2,1)&&eq_operand(src2,dst1,1)){
+                        flag=1;
                         list->array[i]->kind = DAG_ASSIGN;
                         list->array[i]->child[0] = list->array[j];
                         list->array[i]->child[1] = NULL;
@@ -376,12 +402,133 @@ void deleteSubExp(struct BasicBlock_ *bb){
             }
         }
     }
+    //print_bb();
+    return flag;
 }
-
-
+int foldConstant(struct BasicBlock_ *bb){
+    struct DAGnodelist_ *list=buildDAG(bb);
+    //DAG_debugger(list);
+    int flag=0;
+    InterCodes tmp=bb->start;
+    while(tmp!=bb->end){
+        if(tmp->dead==1){tmp=tmp->next;continue;}
+        if(tmp->code->kind==IR_ASSIGN){
+            Operand left=tmp->code->u.assign.left;
+            struct Operand_ temp;
+            Operand right=tmp->code->u.assign.right;
+            if(right->kind==IR_CONSTANT){
+                memcpy(&temp,left,sizeof(struct Operand_));
+                flag=replaceOperand(left,right,bb);
+                memcpy(left,&temp,sizeof(struct Operand_));
+            }
+        }
+        tmp=tmp->next;
+    }
+    tmp=bb->start;
+    while(tmp!=bb->end){
+        if(tmp->code->kind>=11&&tmp->code->kind<=14){
+            Operand result=tmp->code->u.binop.result;
+            Operand op1=tmp->code->u.binop.op1;
+            Operand op2=tmp->code->u.binop.op2;
+            if(op1->kind==IR_CONSTANT&&op2->kind==IR_CONSTANT){
+                flag=1;
+                tmp->code->u.assign.left=result;
+                switch(tmp->code->kind){
+                    case IR_ADD:tmp->code->u.assign.right=createConstOp(op1->u.value+op2->u.value);break;
+                    case IR_SUB:tmp->code->u.assign.right=createConstOp(op1->u.value-op2->u.value);break;
+                    case IR_MUL:tmp->code->u.assign.right=createConstOp(op1->u.value*op2->u.value);break;
+                    case IR_DIV:tmp->code->u.assign.right=createConstOp(op1->u.value/op2->u.value);break;
+                }
+                tmp->code->kind=IR_ASSIGN;
+                
+            }
+        }
+        tmp=tmp->next;
+    }
+    //print_bb();
+    return flag;
+}
+int ifalive(Operand op,InterCodes start,struct BasicBlock_ *bb){
+    int flag=0;
+    InterCodes tmp=start->next;
+    while(tmp!=bb->end){
+        if(tmp->dead==1){tmp=tmp->next;continue;}
+        if(tmp->code->kind==IR_ASSIGN){
+            if(eq_operand(tmp->code->u.assign.left,op,0))return flag;
+            if(eq_operand(tmp->code->u.assign.right,op,2)){return 1;}
+        }
+        else if(tmp->code->kind==IR_CALL){
+            if(eq_operand(tmp->code->u.unaryop.unary,op,0))return flag;
+        }
+        else if(tmp->code->kind==IR_READ){
+            if(eq_operand(tmp->code->u.unaryop.unary,op,0))return flag;
+        }
+        else if(tmp->code->kind>=11&&tmp->code->kind<=14){
+            if(eq_operand(tmp->code->u.binop.result,op,0))return flag;
+            if(eq_operand(tmp->code->u.binop.op1,op,2)){return 1;}
+            if(eq_operand(tmp->code->u.binop.op2,op,2)){return 1;}
+        }
+        else if(tmp->code->kind==IR_IFGOTO){
+            if(eq_operand(tmp->code->u.gotop.op1,op,2)){return 1;}
+            if(eq_operand(tmp->code->u.gotop.op2,op,2)){return 1;}
+        }
+        else if(tmp->code->kind==IR_RETURN){
+            if(eq_operand(tmp->code->u.unaryop.unary,op,0)){return 1;}
+        }
+        else if(tmp->code->kind==IR_ARG){
+            if(eq_operand(tmp->code->u.unaryop.unary,op,0)){return 1;}
+        }
+        else if(tmp->code->kind==IR_WRITE){
+            if(eq_operand(tmp->code->u.unaryop.unary,op,0)){return 1;}
+        }
+        tmp=tmp->next;
+    }
+    if(op->kind==IR_TMPOP)return 0;
+    return 1;
+}
+int removeDeadCode(struct BasicBlock_ *bb){
+    int flag=0;
+    InterCodes tmp=bb->start;
+    while(tmp!=bb->end){
+        if(tmp->dead==1){tmp=tmp->next;continue;}
+        Operand op=NULL;
+        if(tmp->code->kind==IR_ASSIGN){
+            op=tmp->code->u.assign.left;
+        }
+        else if(tmp->code->kind==IR_CALL){
+            op=tmp->code->u.unaryop.unary;
+        }
+        else if(tmp->code->kind==IR_READ){
+            op=tmp->code->u.unaryop.unary;
+        }
+        else if(tmp->code->kind>=11&&tmp->code->kind<=14){
+            op=tmp->code->u.binop.result;
+        }
+        if(op!=NULL){
+            int flag1=ifalive(op,tmp,bb);
+            if(flag1==0){
+                flag=1;
+                tmp->dead=1;
+            }
+        }
+        tmp=tmp->next;
+    }
+    return flag;
+}
 void _build_bblist(){
     get_label_table();
     build_basic_blocks();
-    deleteSubExp(&(bblist.array[0]));
+    for(int i=0;i<bblist.bb_cnt;i++){
+        int flag1=deleteSubExp(&(bblist.array[i]));
+        int flag2=foldConstant(&(bblist.array[i]));
+        int flag3=removeDeadCode(&(bblist.array[i]));
+        
+        while(flag1||flag2||flag3){
+            flag1=deleteSubExp(&(bblist.array[i]));
+            flag2=foldConstant(&(bblist.array[i]));
+            flag3=removeDeadCode(&(bblist.array[i]));
+            //printf("%d%d%d\n",flag1,flag2,flag3);
+        }
+    }
     print_bb();
 }

@@ -50,8 +50,8 @@ struct InterCode_{
 typedef struct InterCodes_* InterCodes;
 struct InterCodes_ {
     InterCode code;
-    int ishead;
-    InterCodes prev, next; 
+    InterCodes prev, next;
+    int dead;
 };
 
 Operand new_lable();

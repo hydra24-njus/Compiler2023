@@ -59,6 +59,7 @@ void print_op(FILE *fp,Operand op){
 void print_ir(FILE *fp){
     InterCodes tmp=ir_head;
     while(tmp!=NULL){
+        if(tmp->dead==1){tmp=tmp->next;continue;}
         InterCode ic=tmp->code;
         switch(ic->kind){
             case IR_LABEL:      fprintf(fp,"LABEL ");print_op(fp,ic->u.unaryop.unary);fprintf(fp," : \n");
