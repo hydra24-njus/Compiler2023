@@ -6,7 +6,7 @@
         "request": "launch",
         "program": "${workspaceFolder}/parser",
         "args": [
-            "test.ir",
+            "../Test/ZM.ir",
             "test1.ir"
         ],
         "stopAtEntry": false,

@@ -1,6 +1,6 @@
 #include <assert.h>
 #include "input.h"
-
+int _func_cnt=0;
 struct Operand_ *handle_var(char *t){
     char* var=t;
     struct Operand_ *ret=malloc(sizeof(struct Operand_));
@@ -28,7 +28,7 @@ struct Operand_ *handle_var(char *t){
         ret->kind=IR_VARIABLE;
         var++;
     }
-    else assert(0);
+    else {printf("in input1\n");assert(0);}
     int x=0;
     sscanf(var,"%d",&x);
     ret->u.vid=x;
@@ -63,6 +63,7 @@ struct InterCodes_ *input(FILE *fp){
     int n1,n2,n3;
 
     while(fgets(buf,sizeof(buf),fp)!=NULL){
+        if(buf[0]=='\n')continue;
         memset(arg,'\0',sizeof(char)*32*4);
         n1=0,n2=0,n3=0;
         if(strncmp(buf,"LABEL",5)==0){
@@ -72,6 +73,7 @@ struct InterCodes_ *input(FILE *fp){
             insert_code(node);
         }
         else if(strncmp(buf,"FUNCTION",8)==0){
+            _func_cnt++;
             sscanf(buf,"FUNCTION %s :",arg[0]);
             InterCodes node=new_intercode(IR_FUNCTION);
             node->code->u.unaryop.unary=handle_fun(arg[0]);
@@ -158,7 +160,7 @@ struct InterCodes_ *input(FILE *fp){
                         case '-':node->code->kind=IR_SUB;break;
                         case '*':node->code->kind=IR_MUL;break;
                         case '/':node->code->kind=IR_DIV;break;
-                        default:assert(0);break;
+                        default:printf("in input2\n");assert(0);break;
                     }
                     insert_code(node);
                 }

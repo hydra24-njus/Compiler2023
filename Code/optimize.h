@@ -16,6 +16,10 @@ struct BB_List_{
     struct BasicBlock_ *array;
     int bb_cnt;
 };
+struct Global_BBlist_{
+    struct BB_List_ *bblist;
+    int gbb_cnt;
+};
 
 struct DAGnode_{
     enum{DAG_ASSIGN,DAG_PLUS,DAG_SUB,DAG_MUL,DAG_DIV,DAG_LEAF,DAG_READ}kind;
@@ -29,5 +33,5 @@ struct DAGnodelist_{
     int capacity;
 };
 
-void _build_bblist();
+void _build_bblist(FILE *fp);
 #endif
