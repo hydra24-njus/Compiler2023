@@ -102,7 +102,9 @@ extern void print_op(FILE *fp,Operand op);
 void print_bb(FILE *fp){
     for(int j=0;j<gbblist.gbb_cnt;j++){
         struct BB_List_ *bblist=&(gbblist.bblist[j]);
+        //fprintf(fp,"\t\t#function%d\n",j);
         for(int i=0;i<bblist->bb_cnt;i++){
+            //fprintf(fp,"\t\t#bb%d\n",i);
             InterCodes tmp=bblist->array[i].start;
             while(tmp!=bblist->array[i].end){
                 if(tmp->dead==1){tmp=tmp->next;continue;}
@@ -482,26 +484,37 @@ int foldConstant(struct BasicBlock_ *bb){
     return flag;
 }
 int ifalive(Operand op,InterCodes start,struct BasicBlock_ *bb){
+    if(op->access==IR_POINT)return 1;
     int flag=0;
     InterCodes tmp=start->next;
     while(tmp!=bb->end){
         if(tmp->dead==1){tmp=tmp->next;continue;}
         if(tmp->code->kind==IR_ASSIGN){
             if(eq_operand(tmp->code->u.assign.left,op,2)){
-                if(tmp->code->u.assign.left->access==IR_POINT)return 1;
-                if(tmp->code->u.assign.left->access!=op->access||tmp->code->u.assign.left->is_addr!=op->is_addr)
-                    return 0;
+                if(tmp->code->u.assign.left->access==IR_POINT)
+                    if(op->access!=IR_POINT)return 1;
+                    else return flag;
+                else return flag;
             }
             if(eq_operand(tmp->code->u.assign.right,op,2)){return 1;}
         }
         else if(tmp->code->kind==IR_CALL){
-            if(eq_operand(tmp->code->u.unaryop.unary,op,0))return flag;
+            if(eq_operand(tmp->code->u.unaryop.unary,op,2)){
+                if(tmp->code->u.unaryop.unary->access==IR_POINT)return 1;
+                else return flag;
+            }
         }
         else if(tmp->code->kind==IR_READ){
-            if(eq_operand(tmp->code->u.unaryop.unary,op,0))return flag;
+            if(eq_operand(tmp->code->u.unaryop.unary,op,2)){
+                if(tmp->code->u.unaryop.unary->access==IR_POINT)return 1;
+                else return flag;
+            }
         }
         else if(tmp->code->kind>=11&&tmp->code->kind<=14){
-            if(eq_operand(tmp->code->u.binop.result,op,0))return flag;
+            if(eq_operand(tmp->code->u.binop.result,op,2)){
+                if(tmp->code->u.binop.result->access==IR_POINT)return 1;
+                else return flag;
+            }
             if(eq_operand(tmp->code->u.binop.op1,op,2)){return 1;}
             if(eq_operand(tmp->code->u.binop.op2,op,2)){return 1;}
         }
@@ -520,7 +533,7 @@ int ifalive(Operand op,InterCodes start,struct BasicBlock_ *bb){
         }
         tmp=tmp->next;
     }
-    //if(op->kind==IR_TMPOP)return 0;
+    if(op->kind==IR_TMPOP&&(bb->end==NULL||bb->end->code->kind==IR_FUNCTION))return 0;
     return 1;
 }
 int removeDeadCode(struct BasicBlock_ *bb){
@@ -545,15 +558,6 @@ int removeDeadCode(struct BasicBlock_ *bb){
             if(op->access!=IR_NOMAL){tmp=tmp->next;continue;}
             int flag1=ifalive(op,tmp,bb);
             if(flag1==0){
-                if(tmp->code->kind==IR_ASSIGN&&
-                   tmp->code->u.assign.left->kind==IR_TMPOP&&
-                   tmp->code->u.assign.right->kind==IR_CONSTANT){
-                    if(tmp->code->u.assign.right->u.value==0||tmp->code->u.assign.right->u.value==1)
-                        {tmp=tmp->next;continue;}
-                   }
-                if(tmp->code->kind==IR_CALL){
-                    tmp=tmp->next;continue;
-                }
                 flag=1;
                 tmp->dead=1;
             }
