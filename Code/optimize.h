@@ -33,5 +33,5 @@ struct DAGnodelist_{
     int capacity;
 };
 
-void _build_bblist(FILE *fp);
+void optimize(FILE *fp);
 #endif

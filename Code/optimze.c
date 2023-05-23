@@ -107,7 +107,7 @@ void print_bb(FILE *fp){
             //fprintf(fp,"\t\t#bb%d\n",i);
             InterCodes tmp=bblist->array[i].start;
             while(tmp!=bblist->array[i].end){
-                if(tmp->dead==1){tmp=tmp->next;continue;}
+                if(tmp->dead==1&&tmp->code->kind!=IR_READ){tmp=tmp->next;continue;}
                 InterCode ic=tmp->code;
                 switch(ic->kind){
                 case IR_LABEL:      fprintf(fp,"LABEL ");print_op(fp,ic->u.unaryop.unary);fprintf(fp," : \n");
@@ -566,8 +566,7 @@ int removeDeadCode(struct BasicBlock_ *bb){
     }
     return flag;
 }
-void _build_bblist(FILE *fp){
-    build_bb_global();
+void localoptimize(){
     for(int j=0;j<gbblist.gbb_cnt;j++){
         struct BB_List_ *bblist=&(gbblist.bblist[j]);
         for(int i=0;i<bblist->bb_cnt;i++){
@@ -586,5 +585,21 @@ void _build_bblist(FILE *fp){
             }
         }
     }
+}
+void build_CFG_true(struct BB_List_ *bblist){
+
+}
+void build_CFG(){
+    for(int i=0;i<gbblist.gbb_cnt;i++){
+        build_CFG_true(&(gbblist.bblist[i]));
+    }
+}
+void globaloptimize(){
+    build_CFG();
+}
+void optimize(FILE *fp){
+    build_bb_global();
+    localoptimize();
+    globaloptimize();
     print_bb(fp);
 }
