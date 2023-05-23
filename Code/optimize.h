@@ -7,9 +7,10 @@ struct BasicBlock_{
     struct InterCodes_ * start;
     struct InterCodes_ * end;
     int dead;
-    struct BasicBlock_ *next[2];
-    struct BasicBlock_ **pre;
+    int next[2];
+    int *pre;
     int precnt;
+    int pre_capacity;
 };
 
 struct BB_List_{

@@ -1,8 +1,6 @@
 #include "optimize.h"
 #include <assert.h>
 int *_label_table=NULL;//label的数组 标号为i的label在ir的第(_label_table[i]+1)行
-int *_is_leader=NULL;//指示某行是否为基本块头，第i行若是基本块开头则_is_leader[i]==1
-InterCodes *_L=NULL;//基本块指针。若ir有k个基本块，_L长度为k+1.其中_L[i]指向第i个基本块头部
 int _ir_cnt=0;
 extern struct InterCodes_ *ir_head,*ir_tail;
 struct Global_BBlist_ gbblist;
@@ -35,7 +33,7 @@ void get_label_table(InterCodes start){
 }
 InterCodes build_basic_blocks(InterCodes start,struct BB_List_ *bblist){
     get_label_table(start);
-    _is_leader=malloc(sizeof(int)*(_ir_cnt+1));
+    int *_is_leader=malloc(sizeof(int)*(_ir_cnt+1));
     memset(_is_leader,0,sizeof(int)*(_ir_cnt+1));
     _is_leader[0]=1;
     int ir_cnt=1;
@@ -63,7 +61,7 @@ InterCodes build_basic_blocks(InterCodes start,struct BB_List_ *bblist){
         ir_cnt++;
     }
     ir_cnt=0;
-    _L=malloc(sizeof(InterCodes)*(k+2));
+    InterCodes *_L=malloc(sizeof(InterCodes)*(k+2));
     memset(_L,NULL,sizeof(InterCodes)*(k+2));
     k=0;
     for(struct InterCodes_ *i=start;i!=NULL;i=i->next){
@@ -78,6 +76,7 @@ InterCodes build_basic_blocks(InterCodes start,struct BB_List_ *bblist){
     free(_label_table);
     bblist->bb_cnt=k;
     bblist->array=malloc(sizeof(struct BasicBlock_)*k);
+    memset(bblist->array,0,sizeof(struct BasicBlock_)*k);
     k=0;
     while(_L[k]!=NULL){
         bblist->array[k].start=_L[k];
@@ -102,9 +101,9 @@ extern void print_op(FILE *fp,Operand op);
 void print_bb(FILE *fp){
     for(int j=0;j<gbblist.gbb_cnt;j++){
         struct BB_List_ *bblist=&(gbblist.bblist[j]);
-        //fprintf(fp,"\t\t#function%d\n",j);
+        fprintf(fp,"\t\t#function%d\n",j);
         for(int i=0;i<bblist->bb_cnt;i++){
-            //fprintf(fp,"\t\t#bb%d\n",i);
+            fprintf(fp,"\t\t#bb%d\n",i);
             InterCodes tmp=bblist->array[i].start;
             while(tmp!=bblist->array[i].end){
                 if(tmp->dead==1&&tmp->code->kind!=IR_READ){tmp=tmp->next;continue;}
@@ -586,14 +585,89 @@ void localoptimize(){
         }
     }
 }
+void addpre(struct BasicBlock_ *bb,int i){
+    if(bb->pre==NULL){
+        bb->pre_capacity=8;
+        bb->precnt=0;
+        bb->pre=malloc(sizeof(int)*8);
+    }
+    else if(bb->pre_capacity==bb->precnt){
+        int *npre=malloc(sizeof(int)*bb->pre_capacity*2);
+        memcpy(npre,bb->pre,sizeof(int)*bb->pre_capacity);
+        bb->pre_capacity*=2;
+        free(bb->pre);
+        bb->pre=npre;
+    }
+    bb->pre[bb->precnt++]=i;
+    return;
+}
 void build_CFG_true(struct BB_List_ *bblist){
-
+    for(int i=0;i<bblist->bb_cnt;i++){
+        bblist->array[i].next[0]=-1;
+        bblist->array[i].next[1]=-1;
+        InterCodes end=bblist->array[i].end;
+        if(end==NULL)end=ir_tail;
+        else end=end->prev;
+        if(end->code->kind==IR_RETURN){//return 没有后继
+            continue;
+        }
+        else if(end->code->kind==IR_GOTO){
+            int labelno=end->code->u.unaryop.unary->u.lableno;
+            for(int j=0;j<bblist->bb_cnt;j++){
+                if(bblist->array[j].start->code->kind==IR_LABEL&&bblist->array[j].start->code->u.unaryop.unary->u.lableno==labelno){
+                    addpre(&(bblist->array[j]),i);
+                    bblist->array[i].next[0]=j;
+                }
+            }
+        }
+        else if(end->code->kind==IR_IFGOTO){
+            int labelno=end->code->u.gotop.lable->u.lableno;
+            for(int j=0;j<bblist->bb_cnt;j++){
+                if(bblist->array[j].start->code->kind==IR_LABEL&&bblist->array[j].start->code->u.unaryop.unary->u.lableno==labelno){
+                    addpre(&(bblist->array[j]),i);
+                    bblist->array[i].next[0]=j;
+                }
+            }
+            if(i+1==bblist->bb_cnt){
+                bblist->array[i].next[0]=-1;
+            }
+            else{
+                bblist->array[i].next[0]=i+1;
+                addpre(&(bblist->array[i+1]),i);
+            }
+        }
+        else {
+            if(i+1==bblist->bb_cnt){
+                bblist->array[i].next[0]=-1;
+            }
+            else{
+                bblist->array[i].next[0]=i+1;
+                addpre(&(bblist->array[i+1]),i);
+            }
+        }
+    }
+}
+void CFG_debugger(struct BB_List_ *bblist){
+    for(int i=0;i<bblist->bb_cnt;i++){
+        printf("%d:",i);
+        /*//通过后继遍历图
+        printf("%d ",bblist->array[i].next[0]);
+        if(bblist->array[i].next[1]!=-1)
+            printf("%d ",bblist->array[i].next[1]);
+        printf("\n");*/
+        for(int j=0;j<bblist->array[i].precnt;j++){
+            printf("%d ",bblist->array[i].pre[j]);
+        }
+        printf("\n");
+    }
 }
 void build_CFG(){
     for(int i=0;i<gbblist.gbb_cnt;i++){
         build_CFG_true(&(gbblist.bblist[i]));
+        CFG_debugger(&(gbblist.bblist[i]));
     }
 }
+
 void globaloptimize(){
     build_CFG();
 }
