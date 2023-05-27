@@ -1,4 +1,5 @@
 #include "optimize.h"
+#include "global_opt.h"
 #include <assert.h>
 int *_label_table=NULL;//label的数组 标号为i的label在ir的第(_label_table[i]+1)行
 int _ir_cnt=0;
@@ -62,7 +63,7 @@ InterCodes build_basic_blocks(InterCodes start,struct BB_List_ *bblist){
     }
     ir_cnt=0;
     InterCodes *_L=malloc(sizeof(InterCodes)*(k+2));
-    memset(_L,NULL,sizeof(InterCodes)*(k+2));
+    memset(_L,0,sizeof(InterCodes)*(k+2));
     k=0;
     for(struct InterCodes_ *i=start;i!=NULL;i=i->next){
         if(i==ret)break;
@@ -92,6 +93,7 @@ extern int _func_cnt;
 void build_bb_global(){
     gbblist.gbb_cnt=_func_cnt;
     gbblist.bblist=malloc(sizeof(struct BB_List_)*(_func_cnt+1));
+    memset(gbblist.bblist,0,sizeof(struct BB_List_)*(_func_cnt+1));
     InterCodes start=ir_head;
     for(int i=0;i<_func_cnt;i++){
         start=build_basic_blocks(start,&(gbblist.bblist[i]));
@@ -106,7 +108,7 @@ void print_bb(FILE *fp){
             fprintf(fp,"\t\t#bb%d\n",i);
             InterCodes tmp=bblist->array[i].start;
             while(tmp!=bblist->array[i].end){
-                if(tmp->dead==1&&tmp->code->kind!=IR_READ){tmp=tmp->next;continue;}
+                //if(tmp->dead==1&&tmp->code->kind!=IR_READ){tmp=tmp->next;continue;}
                 InterCode ic=tmp->code;
                 switch(ic->kind){
                 case IR_LABEL:      fprintf(fp,"LABEL ");print_op(fp,ic->u.unaryop.unary);fprintf(fp," : \n");
@@ -192,9 +194,11 @@ void addDAGnode(struct DAGnode_ *node,struct DAGnodelist_ *list){
         list->capacity=64;
         list->DAG_cnt=0;
         list->array=malloc(sizeof(struct DAGnode_*)*64);
+        memset(list->array,0,sizeof(struct DAGnode_*)*64);
     }
     else if(list->DAG_cnt==list->capacity){
         struct DAGnode_ ** tmp=malloc(sizeof(struct DAGnode_*)*list->capacity*2);
+        memset(tmp+sizeof(struct DAGnode_*)*list->capacity,0,sizeof(struct DAGnode_*)*list->capacity);
         memcpy(tmp,list->array,sizeof(struct DAGnode_*)*list->capacity);
         list->capacity*=2;
         free(list->array);
@@ -205,6 +209,7 @@ void addDAGnode(struct DAGnode_ *node,struct DAGnodelist_ *list){
 }
 struct DAGnode_ *buildDAGnode_leaf(Operand op){
     struct DAGnode_ *node=malloc(sizeof(struct DAGnode_));
+    memset(node,0,sizeof(struct DAGnode_));
     node->kind=DAG_LEAF;
     node->op=op;
     node->op->version=0;
@@ -250,6 +255,7 @@ void creatDAGnode(InterCodes code,struct DAGnodelist_ *list){
            op2->access==IR_POINT||op2->access==IR_ADDR)
             return;
         struct DAGnode_ *newnode=malloc(sizeof(struct DAGnode_));
+        memset(newnode,0,sizeof(struct DAGnode_));
         newnode->kind=code->code->kind-10;//DAG_PLUS=1,IR_PLUS=11
         struct DAGnode_ *curnode=DAG_search(result,list,0);
         if(curnode==NULL){
@@ -300,6 +306,7 @@ void creatDAGnode(InterCodes code,struct DAGnodelist_ *list){
         Operand op=code->code->u.unaryop.unary;
         struct DAGnode_ *node=DAG_search(op,list,0);
         struct DAGnode_ *newnode=malloc(sizeof(struct DAGnode_));
+        memset(newnode,0,sizeof(struct DAGnode_));
         newnode->kind=DAG_READ;
         newnode->op=op;
         if(node==NULL)newnode->op->version=0;
@@ -310,6 +317,7 @@ void creatDAGnode(InterCodes code,struct DAGnodelist_ *list){
 }
 Operand createConstOp(int x){
     Operand ret=malloc(sizeof(struct Operand_));
+    memset(ret,0,sizeof(struct Operand_));
     ret->kind=IR_CONSTANT;
     ret->u.value=x;
     ret->version=0;
@@ -386,6 +394,7 @@ void DAG_debugger(struct DAGnodelist_ *list){
 struct DAGnodelist_ *buildDAG(struct BasicBlock_ *bb){
     InterCodes code=bb->start;
     struct DAGnodelist_ *list=malloc(sizeof(struct DAGnodelist_));
+    memset(list,0,sizeof(struct DAGnodelist_));
     list->array=NULL;
     list->DAG_cnt=0;
     list->capacity=0;
@@ -435,6 +444,7 @@ int deleteSubExp(struct BasicBlock_ *bb){
         }
     }
     //print_bb();
+    unbuildDAG(list);
     return flag;
 }
 int foldConstant(struct BasicBlock_ *bb){
@@ -464,14 +474,15 @@ int foldConstant(struct BasicBlock_ *bb){
             Operand result=tmp->code->u.binop.result;
             Operand op1=tmp->code->u.binop.op1;
             Operand op2=tmp->code->u.binop.op2;
-            if(op1->kind==IR_CONSTANT&&op2->kind==IR_CONSTANT){
+            if(tmp->code->kind==IR_DIV&&op2->kind==IR_CONSTANT&&op2->u.value==0){}
+            else if(op1->kind==IR_CONSTANT&&op2->kind==IR_CONSTANT){
                 flag=1;
                 tmp->code->u.assign.left=result;
                 switch(tmp->code->kind){
                     case IR_ADD:tmp->code->u.assign.right=createConstOp(op1->u.value+op2->u.value);break;
                     case IR_SUB:tmp->code->u.assign.right=createConstOp(op1->u.value-op2->u.value);break;
                     case IR_MUL:tmp->code->u.assign.right=createConstOp(op1->u.value*op2->u.value);break;
-                    case IR_DIV:tmp->code->u.assign.right=createConstOp(op1->u.value/op2->u.value);break;
+                    case IR_DIV:{tmp->code->u.assign.right=createConstOp(op1->u.value/op2->u.value);break;}
                 }
                 tmp->code->kind=IR_ASSIGN;
                 
@@ -578,98 +589,18 @@ void localoptimize(){
                 flag1=deleteSubExp(&(bblist->array[i]));
                 flag2=foldConstant(&(bblist->array[i]));
                 flag3=removeDeadCode(&(bblist->array[i]));
-                fprintf(stderr,"%d%d%d\n",flag1,flag2,flag3);
-                cnt++;
-                if(cnt>15)break;
+                //fprintf(stderr,"%d%d%d\n",flag1,flag2,flag3);
+                if(!(flag2||flag3))cnt++;
+                if(cnt>2)break;
             }
         }
-    }
-}
-void addpre(struct BasicBlock_ *bb,int i){
-    if(bb->pre==NULL){
-        bb->pre_capacity=8;
-        bb->precnt=0;
-        bb->pre=malloc(sizeof(int)*8);
-    }
-    else if(bb->pre_capacity==bb->precnt){
-        int *npre=malloc(sizeof(int)*bb->pre_capacity*2);
-        memcpy(npre,bb->pre,sizeof(int)*bb->pre_capacity);
-        bb->pre_capacity*=2;
-        free(bb->pre);
-        bb->pre=npre;
-    }
-    bb->pre[bb->precnt++]=i;
-    return;
-}
-void build_CFG_true(struct BB_List_ *bblist){
-    for(int i=0;i<bblist->bb_cnt;i++){
-        bblist->array[i].next[0]=-1;
-        bblist->array[i].next[1]=-1;
-        InterCodes end=bblist->array[i].end;
-        if(end==NULL)end=ir_tail;
-        else end=end->prev;
-        if(end->code->kind==IR_RETURN){//return 没有后继
-            continue;
-        }
-        else if(end->code->kind==IR_GOTO){
-            int labelno=end->code->u.unaryop.unary->u.lableno;
-            for(int j=0;j<bblist->bb_cnt;j++){
-                if(bblist->array[j].start->code->kind==IR_LABEL&&bblist->array[j].start->code->u.unaryop.unary->u.lableno==labelno){
-                    addpre(&(bblist->array[j]),i);
-                    bblist->array[i].next[0]=j;
-                }
-            }
-        }
-        else if(end->code->kind==IR_IFGOTO){
-            int labelno=end->code->u.gotop.lable->u.lableno;
-            for(int j=0;j<bblist->bb_cnt;j++){
-                if(bblist->array[j].start->code->kind==IR_LABEL&&bblist->array[j].start->code->u.unaryop.unary->u.lableno==labelno){
-                    addpre(&(bblist->array[j]),i);
-                    bblist->array[i].next[0]=j;
-                }
-            }
-            if(i+1==bblist->bb_cnt){
-                bblist->array[i].next[0]=-1;
-            }
-            else{
-                bblist->array[i].next[0]=i+1;
-                addpre(&(bblist->array[i+1]),i);
-            }
-        }
-        else {
-            if(i+1==bblist->bb_cnt){
-                bblist->array[i].next[0]=-1;
-            }
-            else{
-                bblist->array[i].next[0]=i+1;
-                addpre(&(bblist->array[i+1]),i);
-            }
-        }
-    }
-}
-void CFG_debugger(struct BB_List_ *bblist){
-    for(int i=0;i<bblist->bb_cnt;i++){
-        printf("%d:",i);
-        /*//通过后继遍历图
-        printf("%d ",bblist->array[i].next[0]);
-        if(bblist->array[i].next[1]!=-1)
-            printf("%d ",bblist->array[i].next[1]);
-        printf("\n");*/
-        for(int j=0;j<bblist->array[i].precnt;j++){
-            printf("%d ",bblist->array[i].pre[j]);
-        }
-        printf("\n");
-    }
-}
-void build_CFG(){
-    for(int i=0;i<gbblist.gbb_cnt;i++){
-        build_CFG_true(&(gbblist.bblist[i]));
-        CFG_debugger(&(gbblist.bblist[i]));
     }
 }
 
+
 void globaloptimize(){
-    build_CFG();
+    for(int i=0;i<gbblist.gbb_cnt;i++)
+        optimize_G(&(gbblist.bblist[i]));
 }
 void optimize(FILE *fp){
     build_bb_global();

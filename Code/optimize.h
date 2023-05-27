@@ -11,6 +11,9 @@ struct BasicBlock_{
     int *pre;
     int precnt;
     int pre_capacity;
+    int *in;
+    int *out;
+    int *value;
 };
 
 struct BB_List_{
