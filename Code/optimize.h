@@ -14,6 +14,7 @@ struct BasicBlock_{
     int *in;
     int *out;
     int *value;
+    InterCodes *ivalue;
 };
 
 struct BB_List_{

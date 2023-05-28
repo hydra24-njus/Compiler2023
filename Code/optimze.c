@@ -103,12 +103,12 @@ extern void print_op(FILE *fp,Operand op);
 void print_bb(FILE *fp){
     for(int j=0;j<gbblist.gbb_cnt;j++){
         struct BB_List_ *bblist=&(gbblist.bblist[j]);
-        fprintf(fp,"\t\t#function%d\n",j);
+        //fprintf(fp,"\t\t#function%d\n",j);
         for(int i=0;i<bblist->bb_cnt;i++){
-            fprintf(fp,"\t\t#bb%d\n",i);
+            //fprintf(fp,"\t\t#bb%d\n",i);
             InterCodes tmp=bblist->array[i].start;
             while(tmp!=bblist->array[i].end){
-                //if(tmp->dead==1&&tmp->code->kind!=IR_READ){tmp=tmp->next;continue;}
+                if(tmp->dead==1&&tmp->code->kind!=IR_READ){tmp=tmp->next;continue;}
                 InterCode ic=tmp->code;
                 switch(ic->kind){
                 case IR_LABEL:      fprintf(fp,"LABEL ");print_op(fp,ic->u.unaryop.unary);fprintf(fp," : \n");
@@ -605,6 +605,7 @@ void globaloptimize(){
 void optimize(FILE *fp){
     build_bb_global();
     localoptimize();
-    globaloptimize();
+    //globaloptimize();
+    localoptimize();
     print_bb(fp);
 }

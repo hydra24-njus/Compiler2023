@@ -6,8 +6,8 @@
         "request": "launch",
         "program": "${workspaceFolder}/parser",
         "args": [
-            "../Test/m1.ir",
-            "../Test/m1.ir1"
+            "../Test/ZM.ir",
+            "../Test/ZM.ir1"
         ],
         "stopAtEntry": false,
         "cwd": "${fileDirname}",

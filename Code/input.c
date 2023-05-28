@@ -28,7 +28,7 @@ struct Operand_ *handle_var(char *t){
         ret->kind=IR_VARIABLE;
         var++;
     }
-    else {printf("in input1\n");assert(0);}
+    else {printf("in input1 %s\n",var);assert(0);}
     int x=0;
     sscanf(var,"%d",&x);
     ret->u.vid=x;

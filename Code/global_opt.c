@@ -166,8 +166,235 @@ void topo_sort(struct BB_List_ *bblist,int *list,int i){
     }
 }
 
-void deleteSubExp_G(struct BB_List_ *bblist){
-    
+static int eq_operand(Operand a,Operand b){
+    if(a==NULL && b==NULL)return 1;
+    if(a==NULL||b==NULL)return 0;
+    if(a->kind!=b->kind)return 0;
+    if(a->u.vid!=b->u.vid)return 0;
+    if(a->access!=b->access)return 0;
+    if(a->is_addr!=b->is_addr)return 0;
+    return 1;
+}
+int check_intercodes(InterCodes a,InterCodes b){
+    if(a->code->kind!=b->code->kind)return 0;
+    if(a->code->kind==IR_ADD||a->code->kind==IR_MUL){
+        if(eq_operand(a->code->u.binop.op1,b->code->u.binop.op2)==0
+        &&eq_operand(a->code->u.binop.op2,b->code->u.binop.op1)==0
+        &&eq_operand(a->code->u.binop.result,b->code->u.binop.result)==0)
+        return 1;
+    }
+    if(eq_operand(a->code->u.binop.result,b->code->u.binop.result)==0)return 0;
+    if(eq_operand(a->code->u.binop.op1,b->code->u.binop.op1)==0)return 0;
+    if(a->code->kind==IR_ASSIGN)return 1;
+    if(eq_operand(a->code->u.binop.op2,b->code->u.binop.op2)==0)return 0;
+    return 0;
+}
+int check_exp(InterCodes a,InterCodes b){
+    if(a->code->kind!=b->code->kind)return 0;
+    if(a->code->u.binop.result==b->code->u.binop.result)return 0;
+    if(a->code->kind==IR_ADD||a->code->kind==IR_MUL){
+        if(eq_operand(a->code->u.binop.op1,b->code->u.binop.op2)==1
+        &&eq_operand(a->code->u.binop.op2,b->code->u.binop.op1)==1)
+        return 1;
+    }
+    if(eq_operand(a->code->u.binop.op1,b->code->u.binop.op1)==0)return 0;
+    if(eq_operand(a->code->u.binop.op2,b->code->u.binop.op2)==0)return 0;
+    return 1;
+}
+int subExp_merge(struct BB_List_ *bblist,struct BasicBlock_ *bb,int tmin,int tmax,int vmin,int vmax){
+    int flag=0;
+    for(int i=0;i<bb->precnt;i++){
+        struct BasicBlock_ *pre=&(bblist->array[bb->pre[i]]);
+        for(int j=0;j<tmax-tmin+vmax-vmin+2;j++){
+            if(pre->out[j]!=bb->in[j]){
+                if(bb->in[j]==0){
+                    bb->in[j]=pre->out[j];
+                    bb->ivalue[j]=pre->ivalue[j];
+                    flag=1;
+                }
+                else if(bb->in[j]==1){
+                    if(pre->out[j]==1){
+                        if(check_intercodes(bb->ivalue[j],pre->ivalue[j])==0){
+                            bb->in[j]=2;flag=1;
+                        }
+                    }
+                    else if(pre->out[j]==2){
+                        bb->in[j]=2;
+                        flag=1;
+                    }
+                }
+            }
+        }
+    }
+    return flag;
+}
+int subExp_gen(struct BasicBlock_ *bb,int tmin,int tmax,int vmin,int vmax){
+    int flag=0;
+    InterCodes tmp=bb->start;
+    while(tmp!=bb->end){
+        if(tmp->dead==1){tmp=tmp->next;continue;}
+        switch(tmp->code->kind){
+                
+                case IR_ADD:
+                case IR_SUB:
+                case IR_MUL:
+                case IR_DIV:{
+                    Operand res=tmp->code->u.binop.result;
+                    Operand op1=tmp->code->u.binop.op1;
+                    Operand op2=tmp->code->u.binop.op2;
+                    if(res->access==IR_POINT)break;
+                    if(bb->out[get_index(res,tmin,tmax,vmin,vmax)]==0){
+                        flag=1;
+                        for(int i=0;i<tmax-tmin+vmax-vmin+2;i++){
+                            if(bb->out[get_index(res,tmin,tmax,vmin,vmax)]!=1)continue;
+                            InterCodes tmp2=bb->ivalue[i];
+                            if(eq_operand(tmp2->code->u.binop.op1,res)){
+                                bb->out[i]=2;
+                            }
+                            if(eq_operand(tmp2->code->u.binop.op2,res)){
+                                bb->out[i]=2;
+                            }
+                        }
+                        bb->out[get_index(res,tmin,tmax,vmin,vmax)]=1;
+                        bb->ivalue[get_index(res,tmin,tmax,vmin,vmax)]=tmp;
+                    }
+                    else if(bb->out[get_index(res,tmin,tmax,vmin,vmax)]==1){
+                        if(check_intercodes(tmp,bb->ivalue[get_index(res,tmin,tmax,vmin,vmax)])!=1){
+                            bb->out[get_index(res,tmin,tmax,vmin,vmax)]=2;
+                            flag=1;
+                        }
+                    }
+
+                }break;
+                case IR_ASSIGN:
+                case IR_READ:
+                case IR_CALL:{
+                    Operand op=tmp->code->u.unaryop.unary;
+                    for(int i=0;i<tmax-tmin+vmax-vmin+2;i++){
+                            if(bb->out[i]!=1)continue;
+                            InterCodes tmp2=bb->ivalue[i];
+                            if(eq_operand(tmp2->code->u.binop.op1,op)){
+                                flag=1;
+                                bb->out[i]=2;
+                            }
+                            if(eq_operand(tmp2->code->u.binop.op2,op)){
+                                flag=1;
+                                bb->out[i]=2;
+                            }
+                            if(eq_operand(tmp2->code->u.binop.result,op)){
+                                flag=1;
+                                bb->out[i]=2;
+                            }
+                        }
+                }break;
+                case IR_WRITE:
+                case IR_ARG:break;
+                case IR_PARAM:{
+
+                }break;
+                case IR_RETURN:
+                case IR_IFGOTO:
+                case IR_DEC:break;
+        }
+        tmp=tmp->next;
+    }
+    return flag;
+}
+static void replaceOperand_true(Operand src,Operand dst){
+    src->kind=dst->kind;
+    src->u.vid=dst->u.vid;
+}
+static void replaceOperand(Operand src,Operand dst,InterCodes start,InterCodes end){
+    for(InterCodes i=start->next;i!=end;i=i->next){
+        if(i->dead==1)continue;
+        if(i->code->kind!=IR_IFGOTO&&eq_operand(i->code->u.assign.left,src))break;
+        Operand op1=i->code->u.gotop.op1;
+        Operand op2=i->code->u.gotop.op2;
+        Operand op3=i->code->u.binop.op2;
+        if(op1&&eq_operand(op1,src)){
+            replaceOperand_true(op1,dst);
+        }
+        if(op2&&eq_operand(op2,src)){
+            replaceOperand_true(op2,dst);
+        }
+        if(op3&&eq_operand(op3,src)){
+            replaceOperand_true(op3,dst);
+        }
+    }
+}
+void deleteSubExp_G(struct BB_List_ *bblist,int tmin,int tmax,int vmin,int vmax){
+    int *topolist=malloc(sizeof(int)*bblist->bb_cnt);
+    memset(topolist,-1,sizeof(int)*bblist->bb_cnt);
+    topo_sort(bblist,topolist,0);
+    for(int i=0;i<bblist->bb_cnt;i++){
+        int *in=malloc(sizeof(int)*(tmax-tmin+vmax-vmin+2));
+        memset(in,0,sizeof(int)*(tmax-tmin+vmax-vmin+2));
+        int *out=malloc(sizeof(int)*(tmax-tmin+vmax-vmin+2));
+        memset(out,0,sizeof(int)*(tmax-tmin+vmax-vmin+2));
+        InterCode *value=malloc(sizeof(InterCodes)*(tmax-tmin+vmax-vmin+2));
+        memset(value,0,sizeof(InterCodes)*(tmax-tmin+vmax-vmin+2));
+        bblist->array[i].in=in;
+        bblist->array[i].out=out;
+        bblist->array[i].ivalue=value;
+    }
+    int flag=1;
+    subExp_gen(&(bblist->array[0]),tmin,tmax,vmin,vmax);
+    while(flag){
+        flag=0;
+        for(int i=1;i<bblist->bb_cnt;i++){
+            int flag1=subExp_merge(bblist,&(bblist->array[topolist[i]]),tmin,tmax,vmin,vmax);
+            int flag2=0;
+            if(flag1){
+                memcpy(bblist->array[topolist[i]].out,bblist->array[topolist[i]].in,sizeof(int)*(tmax-tmin+vmax-vmin+2));
+                flag2=subExp_gen(&(bblist->array[topolist[i]]),tmin,tmax,vmin,vmax);
+            }
+            flag=flag|flag1|flag2;
+        }
+    }
+    /*for(int i=0;i<bblist->bb_cnt;i++){
+        for(int j=0;j<tmax-tmin+vmax-vmin+2;j++){
+            printf("%d ",bblist->array[i].in[j]);
+        }
+        printf("\n");
+    }
+    printf("\n");*/
+    for(int i=0;i<bblist->bb_cnt;i++){
+        struct BasicBlock_ *bb=&(bblist->array[i]);
+        for(int j=0;j<tmax-tmin+vmax-vmin+2;j++){
+            if(bb->in[j]!=1)continue;
+            InterCodes dstcode=bb->ivalue[j];
+            Operand dst=dstcode->code->u.assign.left;
+            for(InterCodes tmp=bb->start;tmp!=bb->end;tmp=tmp->next){
+                if(tmp->dead==1)continue;
+                if(tmp->code->kind==IR_CALL||tmp->code->kind==IR_READ||tmp->code==IR_ASSIGN){
+                    Operand op=tmp->code->u.assign.left;
+                    if(eq_operand(op,dst)==1)break;
+                }
+                else if(tmp->code->kind>=11&&tmp->code->kind<=14){
+                    Operand op=tmp->code->u.binop.result;
+                    Operand op1=tmp->code->u.binop.op1;
+                    Operand op2=tmp->code->u.binop.op2;
+                    if(eq_operand(op,dst)==1)break;
+                    if(check_exp(tmp,dstcode)==1){
+                        //printf("%s%d ",dst->kind==IR_TMPOP?"t":"v",dst->u.value);
+                        //printf("%s%d ",dstcode->code->u.binop.op1->kind==IR_TMPOP?"t":"v",dstcode->code->u.binop.op1->u.value);
+                        //printf("%s%d\t",dstcode->code->u.binop.op2->kind==IR_TMPOP?"t":"v",dstcode->code->u.binop.op2->u.value);
+                        //printf("%s%d ",op->kind==IR_TMPOP?"t":"v",op->u.value);
+                        //printf("%s%d ",op1->kind==IR_TMPOP?"t":"v",op1->u.value);
+                        //printf("%s%d\n",op2->kind==IR_TMPOP?"t":"v",op2->u.value);
+                        replaceOperand(op,dst,tmp,bb->end);
+                    }
+                }
+                
+            }
+        }
+    }
+    for(int i=0;i<bblist->bb_cnt;i++){
+        free(bblist->array[i].in);
+        free(bblist->array[i].out);
+        free(bblist->array[i].ivalue);
+    }
+    free(topolist);
 }
 
 int constant_merge(struct BB_List_ *bblist,struct BasicBlock_ *bb,int tmin,int tmax,int vmin,int vmax){
@@ -521,6 +748,6 @@ void optimize_G(struct BB_List_ *bblist){
     //CFG_debugger(bblist);
     //printf("%d %d %d %d\n",tmin,tmax,vmin,vmax);
     foldConstant_G(bblist,tmin,tmax,vmin,vmax);
-    deleteSubExp_G(bblist);
+    deleteSubExp_G(bblist,tmin,tmax,vmin,vmax);
     removeDeadCode_G(bblist);
 }
