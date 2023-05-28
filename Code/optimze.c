@@ -108,7 +108,7 @@ void print_bb(FILE *fp){
             //fprintf(fp,"\t\t#bb%d\n",i);
             InterCodes tmp=bblist->array[i].start;
             while(tmp!=bblist->array[i].end){
-                if(tmp->dead==1&&tmp->code->kind!=IR_READ){tmp=tmp->next;continue;}
+                if(tmp->dead==1&&tmp->code->kind!=IR_READ&&tmp->code->kind!=IR_CALL){tmp=tmp->next;continue;}
                 InterCode ic=tmp->code;
                 switch(ic->kind){
                 case IR_LABEL:      fprintf(fp,"LABEL ");print_op(fp,ic->u.unaryop.unary);fprintf(fp," : \n");
@@ -605,7 +605,7 @@ void globaloptimize(){
 void optimize(FILE *fp){
     build_bb_global();
     localoptimize();
-    //globaloptimize();
+    globaloptimize();
     localoptimize();
     print_bb(fp);
 }

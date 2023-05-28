@@ -366,7 +366,7 @@ void deleteSubExp_G(struct BB_List_ *bblist,int tmin,int tmax,int vmin,int vmax)
             Operand dst=dstcode->code->u.assign.left;
             for(InterCodes tmp=bb->start;tmp!=bb->end;tmp=tmp->next){
                 if(tmp->dead==1)continue;
-                if(tmp->code->kind==IR_CALL||tmp->code->kind==IR_READ||tmp->code==IR_ASSIGN){
+                if(tmp->code->kind==IR_CALL||tmp->code->kind==IR_READ||tmp->code->kind==IR_ASSIGN){
                     Operand op=tmp->code->u.assign.left;
                     if(eq_operand(op,dst)==1)break;
                 }
@@ -737,8 +737,282 @@ void foldConstant_G(struct BB_List_ *bblist,int tmin,int tmax,int vmin,int vmax)
     free(topolist);
 }
 
-void removeDeadCode_G(struct BB_List_ *bblist){
-
+void topo_sort_r(struct BB_List_ *bblist,int *list,int i){
+    int cnt=0;
+    while(list[cnt]!=-1){
+        if(list[cnt]==i){
+            if(bblist->array[i].next[0]==-1)
+                for(int it=0;it<bblist->array[i].precnt;it++){
+                    topo_sort_r(bblist,list,bblist->array[i].pre[it]);
+                }
+            return;
+        }
+        cnt++;
+    }
+    list[cnt]=i;
+    for(int it=0;it<bblist->array[i].precnt;it++){
+        topo_sort_r(bblist,list,bblist->array[i].pre[it]);
+    }
+}
+int deadCode_merge(struct BB_List_ *bblist,struct BasicBlock_ *bb,int tmin,int tmax,int vmin,int vmax){
+    int flag=0;
+    for(int i=0;i<2;i++){
+        if(bb->next[i]==-1)break;
+        struct BasicBlock_ *next=&(bblist->array[bb->next[i]]);
+        for(int j=0;j<tmax-tmin+vmax-vmin+2;j++){
+            if(next->out[j]!=bb->in[j]){
+                if(bb->in[j]==0){
+                    bb->in[j]=next->out[j];
+                    flag=1;
+                }
+            }
+        }
+    }
+    return flag;
+}
+int deadCode_gen(struct BasicBlock_ *bb,int tmin,int tmax,int vmin,int vmax){
+    int flag=0;
+    InterCodes tmp=bb->end;
+    if(tmp==NULL)tmp=ir_tail;
+    while(tmp!=NULL){
+        if(tmp->dead==1){if(tmp==bb->start)break;tmp=tmp->prev;continue;}
+        switch(tmp->code->kind){
+                case IR_ASSIGN:{
+                    Operand left=tmp->code->u.assign.left;
+                    Operand right=tmp->code->u.assign.right;
+                    if(left->access==IR_POINT){
+                        if(bb->out[get_index(left,tmin,tmax,vmin,vmax)]==0){
+                            flag=1;
+                            bb->out[get_index(left,tmin,tmax,vmin,vmax)]=1;
+                        }
+                        if(right->kind==IR_TMPOP||right->kind==IR_VARIABLE)
+                            if(bb->out[get_index(right,tmin,tmax,vmin,vmax)]==0){
+                                flag=1;
+                                bb->out[get_index(right,tmin,tmax,vmin,vmax)]=1;
+                            }
+                    }
+                    else{
+                        if(right->kind==IR_TMPOP||right->kind==IR_VARIABLE)
+                            bb->out[get_index(right,tmin,tmax,vmin,vmax)]=1;
+                        bb->out[get_index(left,tmin,tmax,vmin,vmax)]=0;
+                    }
+                }break;
+                case IR_ADD:
+                case IR_SUB:
+                case IR_MUL:
+                case IR_DIV:{
+                    Operand result=tmp->code->u.binop.result;
+                    Operand op1=tmp->code->u.binop.op1;
+                    Operand op2=tmp->code->u.binop.op2;
+                    if(result->access==IR_POINT){
+                        if(bb->out[get_index(result,tmin,tmax,vmin,vmax)]==0)flag=1;
+                        bb->out[get_index(result,tmin,tmax,vmin,vmax)]=1;
+                        if(op1->kind==IR_TMPOP||op1->kind==IR_VARIABLE){
+                            if(bb->out[get_index(op1,tmin,tmax,vmin,vmax)]==0)flag=1;
+                            bb->out[get_index(op1,tmin,tmax,vmin,vmax)]=1;
+                        }
+                        if(op2->kind==IR_TMPOP||op2->kind==IR_VARIABLE){
+                            if(bb->out[get_index(op2,tmin,tmax,vmin,vmax)]==0)flag=1;
+                            bb->out[get_index(op2,tmin,tmax,vmin,vmax)]=1;
+                        }
+                    }
+                    else{
+                        if(op1->kind==IR_TMPOP||op1->kind==IR_VARIABLE){
+                            if(bb->out[get_index(op1,tmin,tmax,vmin,vmax)]==0)flag=1;
+                            bb->out[get_index(op1,tmin,tmax,vmin,vmax)]=1;
+                        }
+                        if(op2->kind==IR_TMPOP||op2->kind==IR_VARIABLE){
+                            if(bb->out[get_index(op2,tmin,tmax,vmin,vmax)]==0)flag=1;
+                            bb->out[get_index(op2,tmin,tmax,vmin,vmax)]=1;
+                        }
+                        if(result->kind==IR_TMPOP||result->kind==IR_VARIABLE){
+                            if(bb->out[get_index(result,tmin,tmax,vmin,vmax)]==1)flag=1;
+                            bb->out[get_index(result,tmin,tmax,vmin,vmax)]=0;
+                        }
+                    }
+                }break;
+                case IR_CALL:{
+                    Operand op=tmp->code->u.assign.left;
+                    if(op->access==IR_POINT){
+                        if(bb->out[get_index(op,tmin,tmax,vmin,vmax)]==0)flag=1;
+                        bb->out[get_index(op,tmin,tmax,vmin,vmax)]=1;
+                    }
+                    else{
+                        if(bb->out[get_index(op,tmin,tmax,vmin,vmax)]==1)flag=1;
+                        bb->out[get_index(op,tmin,tmax,vmin,vmax)]=0;
+                    }
+                }break;
+                case IR_READ:{
+                    Operand op=tmp->code->u.unaryop.unary;
+                    if(op->access==IR_POINT){
+                        if(bb->out[get_index(op,tmin,tmax,vmin,vmax)]==0)flag=1;
+                        bb->out[get_index(op,tmin,tmax,vmin,vmax)]=1;
+                    }
+                    else{
+                        if(bb->out[get_index(op,tmin,tmax,vmin,vmax)]==1)flag=1;
+                        bb->out[get_index(op,tmin,tmax,vmin,vmax)]=0;
+                    }
+                }break;
+                case IR_WRITE:{
+                    Operand op=tmp->code->u.unaryop.unary;
+                    if(op->kind==IR_TMPOP||op->kind==IR_VARIABLE){
+                        if(bb->out[get_index(op,tmin,tmax,vmin,vmax)]==0)flag=1;
+                        bb->out[get_index(op,tmin,tmax,vmin,vmax)]=1;
+                    }
+                }break;
+                case IR_ARG:{
+                    Operand op=tmp->code->u.unaryop.unary;
+                    if(op->kind==IR_TMPOP||op->kind==IR_VARIABLE){
+                        if(bb->out[get_index(op,tmin,tmax,vmin,vmax)]==0)flag=1;
+                        bb->out[get_index(op,tmin,tmax,vmin,vmax)]=1;
+                    }
+                }break;
+                case IR_PARAM:break;
+                case IR_RETURN:{
+                    Operand op=tmp->code->u.unaryop.unary;
+                    if(op->kind==IR_TMPOP||op->kind==IR_VARIABLE){
+                        if(bb->out[get_index(op,tmin,tmax,vmin,vmax)]==0)flag=1;
+                        bb->out[get_index(op,tmin,tmax,vmin,vmax)]=1;
+                    }
+                }break;
+                case IR_IFGOTO:{
+                    Operand op1=tmp->code->u.gotop.op1;
+                    Operand op2=tmp->code->u.gotop.op2;
+                    if(op1->kind==IR_TMPOP||op1->kind==IR_VARIABLE){
+                        if(bb->out[get_index(op1,tmin,tmax,vmin,vmax)]==0)flag=1;
+                        bb->out[get_index(op1,tmin,tmax,vmin,vmax)]=1;
+                    }
+                    if(op2->kind==IR_TMPOP||op2->kind==IR_VARIABLE){
+                        if(bb->out[get_index(op1,tmin,tmax,vmin,vmax)]==0)flag=1;
+                        bb->out[get_index(op2,tmin,tmax,vmin,vmax)]=1;
+                    }
+                }break;
+                case IR_DEC:break;
+        }
+        if(tmp==bb->start)break;
+        tmp=tmp->prev;
+    }
+    return flag;
+}
+void replace_deadCode_g(struct BasicBlock_ *bb,int kind,int id){
+    InterCodes tmp=bb->end;
+    if(tmp==NULL)tmp=ir_tail;
+    while(tmp!=NULL){
+        if(tmp->dead==1){if(tmp==bb->start)break;tmp=tmp->prev;continue;}
+        switch(tmp->code->kind){
+            case IR_ASSIGN:{
+                Operand op=tmp->code->u.assign.left;
+                Operand op2=tmp->code->u.assign.right;
+                if(op2->kind==kind&&op2->u.vid==id)return;
+                if(op->access==IR_POINT&&op->kind==kind&&op->u.vid==id)return;
+                if(op->access!=IR_POINT)
+                if(op->kind==kind&&op->u.vid==id){
+                    tmp->dead=1;
+                    return;
+                }
+            }break;
+            case IR_ADD:case IR_SUB:case IR_MUL:case IR_DIV:{
+                Operand op=tmp->code->u.binop.result;
+                Operand op1=tmp->code->u.binop.op1;
+                Operand op2=tmp->code->u.binop.op2;
+                if(op1->kind==kind&&op1->u.vid==id)return;
+                if(op2->kind==kind&&op2->u.vid==id)return;
+                if(op->access!=IR_POINT)
+                if(op->kind==kind&&op->u.vid==id){
+                    tmp->dead=1;
+                    return;
+                }
+            }break;
+            case IR_CALL:{
+                Operand op=tmp->code->u.assign.left;
+                if(op->access!=IR_POINT)
+                if(op->kind==kind&&op->u.vid==id){
+                    tmp->dead=1;
+                    return;
+                }
+            }break;
+            case IR_IFGOTO:{
+                Operand op1=tmp->code->u.gotop.op1;
+                Operand op2=tmp->code->u.gotop.op2;
+                if(op1->kind==kind&&op1->u.vid==id)return;
+                if(op2->kind==kind&&op2->u.vid==id)return;
+            }break;
+            case IR_RETURN:{
+                Operand op1=tmp->code->u.unaryop.unary;
+                if(op1->kind==kind&&op1->u.vid==id)return;
+            }break;
+            case IR_ARG:{
+                Operand op1=tmp->code->u.unaryop.unary;
+                if(op1->kind==kind&&op1->u.vid==id)return;
+            }break;
+            case IR_WRITE:{
+                Operand op1=tmp->code->u.unaryop.unary;
+                if(op1->kind==kind&&op1->u.vid==id)return;
+            }break;
+        }
+        if(tmp==bb->start)break;
+        tmp=tmp->prev;
+    }
+    
+}
+void removeDeadCode_G(struct BB_List_ *bblist,int tmin,int tmax,int vmin,int vmax){
+    int *topolist=malloc(sizeof(int)*bblist->bb_cnt);
+    memset(topolist,-1,sizeof(int)*bblist->bb_cnt);
+    int cnt=0;
+    for(int i=0;i<bblist->bb_cnt;i++){
+        if(bblist->array[i].next[0]==-1){
+            topolist[cnt]=i;
+            cnt++;
+        }
+    }
+    for(int i=0;i<cnt;i++)
+        topo_sort_r(bblist,topolist,topolist[i]);//TODO: check this
+    for(int i=0;i<bblist->bb_cnt;i++){
+        int *in=malloc(sizeof(int)*(tmax-tmin+vmax-vmin+2));
+        memset(in,0,sizeof(int)*(tmax-tmin+vmax-vmin+2));
+        int *out=malloc(sizeof(int)*(tmax-tmin+vmax-vmin+2));
+        memset(out,0,sizeof(int)*(tmax-tmin+vmax-vmin+2));
+        bblist->array[i].in=in;
+        bblist->array[i].out=out;
+    }
+    int flag=1;
+    for(int i=0;i<bblist->bb_cnt;i++)deadCode_gen(&(bblist->array[topolist[i]]),tmin,tmax,vmin,vmax);
+    while(flag){
+        flag=0;
+        for(int i=0;i<bblist->bb_cnt;i++){
+            int flag1=deadCode_merge(bblist,&(bblist->array[topolist[i]]),tmin,tmax,vmin,vmax);
+            int flag2=0;
+            if(flag1){
+                memcpy(bblist->array[topolist[i]].out,bblist->array[topolist[i]].in,sizeof(int)*(tmax-tmin+vmax-vmin+2));
+                flag2=deadCode_gen(&(bblist->array[topolist[i]]),tmin,tmax,vmin,vmax);
+            }
+            flag=flag|flag1|flag2;
+        }
+    }
+    for(int i=0;i<bblist->bb_cnt;i++){
+        for(int j=0;j<tmax-tmin+vmax-vmin+2;j++){
+            printf("%d ",bblist->array[i].in[j]);
+        }
+        printf("\n");
+    }
+    printf("\n");
+    
+    for(int i=0;i<bblist->bb_cnt;i++){
+        for(int j=0;j<tmax-tmin+vmax-vmin+2;j++){
+            if(bblist->array[i].in[j]==0){
+                int kind=0;
+                int id=0;
+                if(j<=tmax-tmin){kind=IR_TMPOP;id=tmin+j;}
+                else {kind=IR_VARIABLE;id=j-tmax+tmin-1+vmin;}
+                replace_deadCode_g(&(bblist->array[i]),kind,id);
+            }
+        }
+    }
+    for(int i=0;i<bblist->bb_cnt;i++){
+        free(bblist->array[i].in);
+        free(bblist->array[i].out);
+    }
+    free(topolist);
 }
 
 void optimize_G(struct BB_List_ *bblist){
@@ -749,5 +1023,5 @@ void optimize_G(struct BB_List_ *bblist){
     //printf("%d %d %d %d\n",tmin,tmax,vmin,vmax);
     foldConstant_G(bblist,tmin,tmax,vmin,vmax);
     deleteSubExp_G(bblist,tmin,tmax,vmin,vmax);
-    removeDeadCode_G(bblist);
+    removeDeadCode_G(bblist,tmin,tmax,vmin,vmax);
 }
