@@ -607,5 +607,7 @@ void optimize(FILE *fp){
     localoptimize();
     globaloptimize();
     localoptimize();
+    globaloptimize();
+    localoptimize();
     print_bb(fp);
 }

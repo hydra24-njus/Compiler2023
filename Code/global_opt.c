@@ -989,13 +989,14 @@ void removeDeadCode_G(struct BB_List_ *bblist,int tmin,int tmax,int vmin,int vma
             flag=flag|flag1|flag2;
         }
     }
+    /*
     for(int i=0;i<bblist->bb_cnt;i++){
         for(int j=0;j<tmax-tmin+vmax-vmin+2;j++){
             printf("%d ",bblist->array[i].in[j]);
         }
         printf("\n");
     }
-    printf("\n");
+    printf("\n");*/
     
     for(int i=0;i<bblist->bb_cnt;i++){
         for(int j=0;j<tmax-tmin+vmax-vmin+2;j++){
