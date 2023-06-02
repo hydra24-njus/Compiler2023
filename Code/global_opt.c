@@ -450,7 +450,8 @@ int constant_gen(struct BasicBlock_ *bb,int tmin,int tmax,int vmin,int vmax){
                     else if(right->kind==IR_TMPOP||right->kind==IR_VARIABLE){
                         if(right->access==IR_ADDR||right->access==IR_POINT){
                             if(bb->out[get_index(left,tmin,tmax,vmin,vmax)]!=2){
-                            bb->out[get_index(left,tmin,tmax,vmin,vmax)]=2;flag=1;}
+                                bb->out[get_index(left,tmin,tmax,vmin,vmax)]=2;flag=1;
+                            }
                         }
                         else{
                             if(bb->out[get_index(right,tmin,tmax,vmin,vmax)]==1){
@@ -460,7 +461,7 @@ int constant_gen(struct BasicBlock_ *bb,int tmin,int tmax,int vmin,int vmax){
                                     bb->value[get_index(left,tmin,tmax,vmin,vmax)]=bb->out[get_index(right,tmin,tmax,vmin,vmax)];
                                 }
                                 else if(bb->out[get_index(left,tmin,tmax,vmin,vmax)]==1){
-                                    if(bb->value[get_index(left,tmin,tmax,vmin,vmax)]!=bb->out[get_index(right,tmin,tmax,vmin,vmax)]){
+                                    if(bb->value[get_index(left,tmin,tmax,vmin,vmax)]!=bb->value[get_index(right,tmin,tmax,vmin,vmax)]){
                                         bb->out[get_index(left,tmin,tmax,vmin,vmax)]=2;
                                         flag=1;
                                     }
