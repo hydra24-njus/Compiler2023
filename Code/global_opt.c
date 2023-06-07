@@ -21,6 +21,12 @@ void build_CFG(struct BB_List_ *bblist){
     for(int i=0;i<bblist->bb_cnt;i++){
         bblist->array[i].next[0]=-1;
         bblist->array[i].next[1]=-1;
+        bblist->array[i].precnt=0;
+        bblist->array[i].pre_capacity=0;
+        free(bblist->array[i].pre);
+        bblist->array[i].pre=NULL;
+    }
+    for(int i=0;i<bblist->bb_cnt;i++){
         InterCodes end=bblist->array[i].end;
         if(end==NULL)end=ir_tail;
         else end=end->prev;
@@ -353,7 +359,7 @@ void deleteSubExp_G(struct BB_List_ *bblist,int tmin,int tmax,int vmin,int vmax)
     }
     /*for(int i=0;i<bblist->bb_cnt;i++){
         for(int j=0;j<tmax-tmin+vmax-vmin+2;j++){
-            printf("%d ",bblist->array[i].in[j]);
+            printf("%d ",bblist->array[i].out[j]);
         }
         printf("\n");
     }
@@ -364,17 +370,24 @@ void deleteSubExp_G(struct BB_List_ *bblist,int tmin,int tmax,int vmin,int vmax)
             if(bb->in[j]!=1)continue;
             InterCodes dstcode=bb->ivalue[j];
             Operand dst=dstcode->code->u.assign.left;
+            Operand dst1=dstcode->code->u.binop.op1;
+            Operand dst2=dstcode->code->u.binop.op2;
+
             for(InterCodes tmp=bb->start;tmp!=bb->end;tmp=tmp->next){
                 if(tmp->dead==1)continue;
                 if(tmp->code->kind==IR_CALL||tmp->code->kind==IR_READ||tmp->code->kind==IR_ASSIGN){
                     Operand op=tmp->code->u.assign.left;
                     if(eq_operand(op,dst)==1)break;
+                    if(eq_operand(op,dst1)==1)break;
+                    if(eq_operand(op,dst2)==1)break;
                 }
                 else if(tmp->code->kind>=11&&tmp->code->kind<=14){
                     Operand op=tmp->code->u.binop.result;
                     Operand op1=tmp->code->u.binop.op1;
                     Operand op2=tmp->code->u.binop.op2;
                     if(eq_operand(op,dst)==1)break;
+                    if(eq_operand(op,dst1)==1)break;
+                    if(eq_operand(op,dst2)==1)break;
                     if(check_exp(tmp,dstcode)==1){
                         //printf("%s%d ",dst->kind==IR_TMPOP?"t":"v",dst->u.value);
                         //printf("%s%d ",dstcode->code->u.binop.op1->kind==IR_TMPOP?"t":"v",dstcode->code->u.binop.op1->u.value);
@@ -458,7 +471,7 @@ int constant_gen(struct BasicBlock_ *bb,int tmin,int tmax,int vmin,int vmax){
                                 if(bb->out[get_index(left,tmin,tmax,vmin,vmax)]==0){
                                     flag=1;
                                     bb->out[get_index(left,tmin,tmax,vmin,vmax)]=1;
-                                    bb->value[get_index(left,tmin,tmax,vmin,vmax)]=bb->out[get_index(right,tmin,tmax,vmin,vmax)];
+                                    bb->value[get_index(left,tmin,tmax,vmin,vmax)]=bb->value[get_index(right,tmin,tmax,vmin,vmax)];
                                 }
                                 else if(bb->out[get_index(left,tmin,tmax,vmin,vmax)]==1){
                                     if(bb->value[get_index(left,tmin,tmax,vmin,vmax)]!=bb->value[get_index(right,tmin,tmax,vmin,vmax)]){
